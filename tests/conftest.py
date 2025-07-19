@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+from unittest.mock import Mock
 
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -191,6 +192,23 @@ def sample_user_data() -> dict:
         "email": "newuser@example.com",
         "password": "newpass123"
     }
+
+
+@pytest.fixture
+def mock_db() -> Mock:
+    """
+    Create a mock database session for unit testing.
+    """
+    mock = Mock(spec=Session)
+    mock.add = Mock()
+    mock.commit = Mock()
+    mock.refresh = Mock()
+    mock.rollback = Mock()
+    mock.query = Mock()
+    mock.merge = Mock()
+    mock.flush = Mock()
+    mock.delete = Mock()
+    return mock
 
 
 # Pytest configuration

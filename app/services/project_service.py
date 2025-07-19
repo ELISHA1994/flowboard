@@ -2,7 +2,7 @@
 Service layer for project management
 """
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from app.db.models import Project, ProjectMember, ProjectInvitation, User, ProjectRole
@@ -24,7 +24,8 @@ class ProjectService:
             id=str(uuid.uuid4()),
             name=project_data.name,
             description=project_data.description,
-            owner_id=owner_id
+            owner_id=owner_id,
+            is_active=True
         )
         
         try:
@@ -78,7 +79,7 @@ class ProjectService:
         for field, value in update_dict.items():
             setattr(project, field, value)
             
-        project.updated_at = datetime.utcnow()
+        project.updated_at = datetime.now(timezone.utc)
         
         try:
             db.commit()
@@ -98,7 +99,7 @@ class ProjectService:
     def soft_delete_project(db: Session, project: Project) -> Project:
         """Soft delete a project"""
         project.is_active = False
-        project.updated_at = datetime.utcnow()
+        project.updated_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(project)
         return project
@@ -169,7 +170,7 @@ class ProjectService:
             ProjectInvitation.project_id == project_id,
             ProjectInvitation.invitee_email == invitation_data.invitee_email,
             ProjectInvitation.accepted_at == None,
-            ProjectInvitation.expires_at > datetime.utcnow()
+            ProjectInvitation.expires_at > datetime.now(timezone.utc)
         ).first()
         
         if existing_invitation:
@@ -182,7 +183,7 @@ class ProjectService:
             invitee_email=invitation_data.invitee_email,
             role=invitation_data.role,
             token=str(uuid.uuid4()),
-            expires_at=datetime.utcnow() + timedelta(days=7)  # 7 day expiry
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7)  # 7 day expiry
         )
         
         db.add(invitation)
@@ -199,7 +200,7 @@ class ProjectService:
         if invitation.accepted_at:
             raise ValueError("Invitation has already been accepted")
             
-        if invitation.expires_at < datetime.utcnow():
+        if invitation.expires_at < datetime.now(timezone.utc):
             raise ValueError("Invitation has expired")
         
         # Add user as project member
@@ -211,7 +212,7 @@ class ProjectService:
         )
         
         # Mark invitation as accepted
-        invitation.accepted_at = datetime.utcnow()
+        invitation.accepted_at = datetime.now(timezone.utc)
         db.commit()
         
         return member
