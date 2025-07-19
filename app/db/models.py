@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
 import enum
+import uuid
 
 
 class TaskStatus(str, enum.Enum):
@@ -54,6 +55,8 @@ class User(Base):
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
     categories = relationship("Category", back_populates="user", cascade="all, delete-orphan")
     tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
+    owned_projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan", foreign_keys="Project.owner_id")
+    project_memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
 
 
 class Task(Base):
@@ -85,6 +88,9 @@ class Task(Base):
     # Subtask support
     parent_task_id = Column(String, ForeignKey("tasks.id"), nullable=True, index=True)
     
+    # Project support
+    project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
+    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
@@ -110,6 +116,9 @@ class Task(Base):
         back_populates="depends_on",
         cascade="all, delete-orphan"
     )
+    
+    # Project relationship
+    project = relationship("Project", back_populates="tasks")
 
 
 class Category(Base):
@@ -172,3 +181,92 @@ class TaskDependency(Base):
     __table_args__ = (
         UniqueConstraint('task_id', 'depends_on_id', name='_task_dependency_uc'),
     )
+
+
+class ProjectRole(str, enum.Enum):
+    """Enum for project member roles"""
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+    VIEWER = "viewer"
+
+
+class Project(Base):
+    """Project model for organizing tasks"""
+    __tablename__ = "projects"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    owner_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    owner = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    
+    def get_member_role(self, user_id: str) -> ProjectRole:
+        """Get the role of a user in this project"""
+        member = next((m for m in self.members if m.user_id == user_id), None)
+        if member:
+            return member.role
+        if self.owner_id == user_id:
+            return ProjectRole.OWNER
+        return None
+    
+    def has_permission(self, user_id: str, required_role: ProjectRole) -> bool:
+        """Check if user has required permission level"""
+        role_hierarchy = {
+            ProjectRole.VIEWER: 1,
+            ProjectRole.MEMBER: 2,
+            ProjectRole.ADMIN: 3,
+            ProjectRole.OWNER: 4
+        }
+        
+        user_role = self.get_member_role(user_id)
+        if not user_role:
+            return False
+            
+        return role_hierarchy.get(user_role, 0) >= role_hierarchy.get(required_role, 0)
+
+
+class ProjectMember(Base):
+    """Project membership model"""
+    __tablename__ = "project_members"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role = Column(SQLEnum(ProjectRole), default=ProjectRole.MEMBER, nullable=False)
+    joined_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    project = relationship("Project", back_populates="members")
+    user = relationship("User", back_populates="project_memberships")
+    
+    # Unique constraint to prevent duplicate memberships
+    __table_args__ = (
+        UniqueConstraint('project_id', 'user_id', name='_project_user_uc'),
+    )
+
+
+class ProjectInvitation(Base):
+    """Project invitation model"""
+    __tablename__ = "project_invitations"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    inviter_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    invitee_email = Column(String(320), nullable=False)
+    role = Column(SQLEnum(ProjectRole), default=ProjectRole.MEMBER, nullable=False)
+    token = Column(String, unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    project = relationship("Project")
+    inviter = relationship("User")
