@@ -248,6 +248,12 @@ async def update_task(
     db.commit()
     db.refresh(task)
     
+    # If the task status changed and it has a parent, update parent status
+    if 'status' in update_data and task.parent_task_id:
+        parent_task = db.query(TaskModel).filter(TaskModel.id == task.parent_task_id).first()
+        if parent_task:
+            TaskDependencyService.update_parent_task_status(db, parent_task)
+    
     return format_task_response(task)
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

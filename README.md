@@ -490,6 +490,8 @@ Update Todos
     ☒ Implement categories and tags system
     ☒ Set up production-grade migration system with Alembic
     ☒ Add subtasks and task dependencies
+    ☒ Write unit tests for TaskDependencyService
+    ☒ Write integration tests for task dependency API endpoints
     ☐ Create project/team management models
     ☐ Implement task assignment and sharing
     ☐ Add comments and @mentions system
