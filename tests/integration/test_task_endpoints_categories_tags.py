@@ -170,7 +170,12 @@ class TestTaskCategoriesAndTags:
             "tag_names": ["remove1", "remove2"]
         }
         
-        response = test_client.delete(f"/tasks/{task.id}/tags", json=remove_data, headers=auth_headers)
+        response = test_client.request(
+            "DELETE",
+            f"/tasks/{task.id}/tags", 
+            json=remove_data,
+            headers=auth_headers
+        )
         
         assert response.status_code == 200
         data = response.json()

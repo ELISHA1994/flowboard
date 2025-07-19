@@ -15,9 +15,10 @@ class TestDatabaseConfiguration:
     
     def test_database_url_configuration(self):
         """Test that database URL is correctly configured."""
-        assert database.SQLALCHEMY_DATABASE_URL == "sqlite:///./tasks.db"
-        assert "sqlite" in database.SQLALCHEMY_DATABASE_URL
-        assert "tasks.db" in database.SQLALCHEMY_DATABASE_URL
+        from app.core.config import settings
+        assert settings.DATABASE_URL == "sqlite:///./tasks.db"
+        assert "sqlite" in settings.DATABASE_URL
+        assert "tasks.db" in settings.DATABASE_URL
     
     def test_engine_configuration(self):
         """Test that engine is correctly configured."""
@@ -186,10 +187,12 @@ class TestDatabaseConstants:
         """Test SQLite specific configuration."""
         # Engine should be created with SQLite specific args
         # This is a bit of implementation detail testing, but important for SQLite
-        assert "sqlite" in database.SQLALCHEMY_DATABASE_URL.lower()
+        from app.core.config import settings
+        assert "sqlite" in settings.DATABASE_URL.lower()
         
         # Verify the database file path
-        db_path = database.SQLALCHEMY_DATABASE_URL.split("///")[-1]
+        from app.core.config import settings
+        db_path = settings.DATABASE_URL.split("///")[-1]
         assert db_path == "./tasks.db"
     
     def test_engine_creation_verification(self):

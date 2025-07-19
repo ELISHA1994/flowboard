@@ -1,5 +1,5 @@
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
 
 
@@ -64,8 +64,7 @@ class CategoryResponse(CategoryBase):
     created_at: str
     updated_at: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CategoryWithTasks(CategoryResponse):

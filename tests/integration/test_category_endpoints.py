@@ -52,7 +52,8 @@ class TestCategoryEndpoints:
         response = test_client.post("/categories/", json=category_data, headers=auth_headers)
         
         assert response.status_code == 400
-        assert "already exists" in response.json()["detail"]
+        response_data = response.json()
+        assert "already exists" in response_data.get("detail", response_data.get("message", ""))
     
     def test_list_categories(self, test_client: TestClient, test_user: User, auth_headers: dict, test_db: Session):
         """Test listing user categories"""
@@ -140,13 +141,15 @@ class TestCategoryEndpoints:
         test_db.add(category)
         test_db.commit()
         
-        response = test_client.delete(f"/categories/{category.id}", headers=auth_headers)
+        category_id = category.id
+        response = test_client.delete(f"/categories/{category_id}", headers=auth_headers)
         
         assert response.status_code == 204
         
-        # Verify category is soft deleted
-        test_db.refresh(category)
-        assert category.is_active is False
+        # Verify category is soft deleted by querying it
+        updated_category = test_db.query(Category).filter_by(id=category_id).first()
+        assert updated_category is not None
+        assert updated_category.is_active is False
     
     def test_category_isolation(self, test_client: TestClient, test_user: User, auth_headers: dict, test_db: Session):
         """Test that users can only access their own categories"""
