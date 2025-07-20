@@ -2,35 +2,125 @@
 
 A scalable FastAPI application following clean architecture principles with JWT authentication, PostgreSQL database persistence, and comprehensive task management features.
 
+## Quick Start
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd turing_interview
+
+# Create virtual environment and install dependencies
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Set up PostgreSQL and Redis (must be installed)
+python scripts/setup_postgres.py
+alembic upgrade head
+
+# Create .env file with minimal config
+echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
+echo "DB_NAME=taskmanager" >> .env
+echo "DB_USER=taskmanageruser" >> .env
+echo "DB_PASSWORD=taskmanagerpass" >> .env
+
+# Start the application
+uvicorn app.main:app --reload
+
+# Access the API documentation
+# Open http://localhost:8000/docs in your browser
+```
+
 ## Project Structure
 
 ```
 app/
 ├── api/                 # API endpoints and routing
 │   ├── main.py         # Main API router aggregator
+│   ├── endpoints/      # Additional endpoint modules
+│   │   └── projects.py # Project management endpoints
 │   └── routers/        # Individual route modules
-│       ├── auth.py     # Authentication endpoints
-│       ├── tasks.py    # Task CRUD endpoints
-│       └── users.py    # User profile endpoints
+│       ├── analytics.py     # Analytics and reporting endpoints
+│       ├── auth.py          # Authentication endpoints
+│       ├── calendar.py      # Calendar integration endpoints
+│       ├── categories.py    # Category management endpoints
+│       ├── comments.py      # Comment system endpoints
+│       ├── files.py         # File attachment endpoints
+│       ├── notifications.py # Notification endpoints
+│       ├── search.py        # Advanced search endpoints
+│       ├── tags.py          # Tag management endpoints
+│       ├── tasks.py         # Task CRUD endpoints
+│       ├── users.py         # User profile endpoints
+│       └── webhooks.py      # Webhook subscription endpoints
 ├── core/               # Core application components
+│   ├── celery_app.py   # Celery configuration
+│   ├── config.py       # Application configuration
 │   ├── exception_handlers.py  # Global exception handling
-│   ├── logging.py             # Logging configuration
-│   ├── middleware/            # Middleware components
+│   ├── exceptions.py   # Custom exception classes
+│   ├── logging.py      # Logging configuration
+│   ├── middleware/     # Middleware components
 │   │   └── jwt_auth_backend.py  # JWT authentication
-│   └── models.py              # Core response models
+│   └── models.py       # Core response models
 ├── db/                 # Database layer
 │   ├── database.py     # Database connection setup
 │   ├── db_instance.py  # Database dependency injection
-│   └── models.py       # SQLAlchemy ORM models
+│   └── models.py       # SQLAlchemy ORM models (all entities)
 ├── models/             # Pydantic models (DTOs)
-│   ├── task.py        # Task request/response models
-│   └── user.py        # User request/response models
+│   ├── analytics.py    # Analytics request/response models
+│   ├── calendar.py     # Calendar integration models
+│   ├── category.py     # Category models
+│   ├── comment.py      # Comment models
+│   ├── file_attachment.py  # File attachment models
+│   ├── notification.py # Notification models
+│   ├── project.py      # Project models
+│   ├── search.py       # Search and filter models
+│   ├── tag.py          # Tag models
+│   ├── task.py         # Task request/response models
+│   ├── user.py         # User request/response models
+│   └── webhook.py      # Webhook models
 ├── services/           # Business logic layer
-│   ├── task_service.py # Task-related business logic
-│   └── user_service.py # User-related business logic
+│   ├── analytics_service.py      # Analytics computation
+│   ├── bulk_operations_service.py # Bulk task operations
+│   ├── cache_service.py          # Redis caching service
+│   ├── calendar_service.py       # Calendar integration
+│   ├── category_service.py       # Category management
+│   ├── comment_service.py        # Comment system logic
+│   ├── file_service.py           # File handling
+│   ├── notification_service.py   # Notification logic
+│   ├── project_service.py        # Project management
+│   ├── recurrence_service.py     # Recurring task logic
+│   ├── search_service.py         # Advanced search logic
+│   ├── tag_service.py            # Tag management
+│   ├── task_dependency_service.py # Task dependencies
+│   ├── task_service.py           # Task-related business logic
+│   ├── user_service.py           # User-related business logic
+│   └── webhook_service.py        # Webhook delivery logic
+├── tasks/              # Celery background tasks
+│   ├── analytics.py    # Analytics computation tasks
+│   ├── notifications.py # Notification sending tasks
+│   ├── recurring.py    # Recurring task processing
+│   ├── reminders.py    # Reminder tasks
+│   └── webhooks.py     # Webhook delivery tasks
 ├── utils/              # Utilities and constants
 │   └── constants.py    # Application constants
 └── main.py            # FastAPI application entry point
+
+migrations/             # Alembic database migrations
+├── alembic.ini        # Alembic configuration
+├── env.py             # Migration environment setup
+├── script.py.mako     # Migration template
+└── versions/          # Migration files
+
+scripts/               # Utility scripts
+├── celery/            # Celery management scripts
+│   ├── start_all.sh   # Start all Celery components
+│   ├── start_worker.sh # Start individual worker
+│   ├── start_beat.sh  # Start beat scheduler
+│   └── monitor.sh     # Monitor Celery tasks
+├── setup_postgres.py  # PostgreSQL setup script
+├── test_celery.py     # Test Celery configuration
+├── test_redis_cache.py # Test Redis connection
+└── test_async_integration.py # Test async components
 
 tests/                  # Comprehensive test suite
 ├── unit/              # Unit tests (isolated, mocked)
@@ -38,6 +128,10 @@ tests/                  # Comprehensive test suite
 ├── e2e/              # End-to-end workflow tests
 ├── factories/        # Test data factories
 └── conftest.py       # Shared pytest fixtures
+
+docs/                  # Documentation
+├── CELERY_INTEGRATION.md  # Celery integration guide
+└── API_DOCUMENTATION.md   # Detailed API docs
 ```
 
 ## Prerequisites
@@ -71,10 +165,15 @@ tests/                  # Comprehensive test suite
    Or install manually:
    ```bash
    # Core dependencies
-   pip install fastapi uvicorn sqlalchemy psycopg2-binary python-jose[cryptography] bcrypt python-multipart email-validator python-dotenv
+   pip install fastapi uvicorn sqlalchemy psycopg2-binary alembic
+   pip install python-jose[cryptography] bcrypt python-multipart 
+   pip install email-validator python-dotenv pydantic[email]
+   pip install redis celery[redis] flower
+   pip install aiofiles pandas openpyxl
    
    # Test dependencies
    pip install pytest pytest-asyncio pytest-cov httpx factory-boy faker
+   pip install pytest-mock freezegun
    ```
 
 ## Database Setup
@@ -482,6 +581,97 @@ The project includes a comprehensive test suite with unit, integration, and end-
 - `POST /analytics/export` - Export tasks to CSV or Excel
   - Body: `{"format": "csv", "task_ids": ["id1", "id2"]}` (format: csv/excel)
 
+### Categories and Tags
+- `GET /categories` - List user's categories
+- `POST /categories` - Create a new category
+  - Body: `{"name": "string", "color": "#FF5733", "description": "string"}`
+- `PUT /categories/{category_id}` - Update category
+- `DELETE /categories/{category_id}` - Delete category
+- `GET /tags` - List user's tags
+- `POST /tags` - Create a new tag
+  - Body: `{"name": "string", "color": "#FF5733"}`
+- `PUT /tags/{tag_id}` - Update tag
+- `DELETE /tags/{tag_id}` - Delete tag
+
+### Comments and Mentions
+- `GET /tasks/{task_id}/comments` - Get task comments
+  - Query params: `?include_replies=true`
+- `POST /tasks/{task_id}/comments` - Add comment to task
+  - Body: `{"content": "string", "parent_comment_id": "string"}`
+- `PUT /comments/{comment_id}` - Update comment
+- `DELETE /comments/{comment_id}` - Delete comment
+- `GET /users/me/mentions` - Get comments where user is mentioned
+  - Query params: `?skip=0&limit=20`
+
+### File Attachments
+- `POST /tasks/{task_id}/files` - Upload file to task
+  - Form data with file upload
+- `GET /tasks/{task_id}/files` - List task attachments
+- `GET /files/{file_id}` - Download file
+- `DELETE /files/{file_id}` - Delete file attachment
+
+### Projects
+- `GET /projects` - List user's projects
+- `POST /projects` - Create a new project
+  - Body: `{"name": "string", "description": "string", "color": "#FF5733"}`
+- `GET /projects/{project_id}` - Get project details
+- `PUT /projects/{project_id}` - Update project
+- `DELETE /projects/{project_id}` - Delete project
+- `GET /projects/{project_id}/members` - List project members
+- `POST /projects/{project_id}/members` - Add project member
+  - Body: `{"user_id": "string", "role": "MEMBER"}`
+- `PUT /projects/{project_id}/members/{user_id}` - Update member role
+- `DELETE /projects/{project_id}/members/{user_id}` - Remove member
+
+### Task Dependencies and Subtasks
+- `POST /tasks/{task_id}/dependencies` - Add task dependency
+  - Body: `{"depends_on_id": "string"}`
+- `GET /tasks/{task_id}/dependencies` - Get task dependencies
+- `DELETE /tasks/{task_id}/dependencies/{depends_on_id}` - Remove dependency
+- `POST /tasks/{task_id}/subtasks` - Create subtask
+  - Body: Same as task creation, automatically sets parent_task_id
+- `GET /tasks/{task_id}/subtasks` - Get task's subtasks
+
+### Recurring Tasks
+- `POST /tasks/{task_id}/recurrence` - Set task recurrence
+  - Body: `{"pattern": "daily|weekly|monthly|yearly", "interval": 1, "days_of_week": [1,3,5], "day_of_month": 15, "end_date": "2024-12-31"}`
+- `PUT /tasks/{task_id}/recurrence` - Update recurrence
+- `DELETE /tasks/{task_id}/recurrence` - Remove recurrence
+- `GET /tasks/{task_id}/recurrence/instances` - Get recurring instances
+
+### Notifications and Reminders
+- `GET /notifications` - Get user notifications
+  - Query params: `?unread_only=true&type=task_assigned&limit=50`
+- `PUT /notifications/{notification_id}/read` - Mark notification as read
+- `PUT /notifications/read-all` - Mark all notifications as read
+- `DELETE /notifications/{notification_id}` - Delete notification
+- `GET /notifications/preferences` - Get notification preferences
+- `PUT /notifications/preferences` - Update preferences
+  - Body: `{"notification_type": "task_due", "channel": "email", "enabled": true, "frequency": "immediate"}`
+- `POST /tasks/{task_id}/reminders` - Create task reminder
+  - Body: `{"remind_at": "2024-01-20T10:00:00Z", "message": "string"}`
+- `GET /tasks/{task_id}/reminders` - Get task reminders
+- `DELETE /reminders/{reminder_id}` - Delete reminder
+
+### Webhooks
+- `GET /webhooks` - List webhook subscriptions
+- `POST /webhooks` - Create webhook subscription
+  - Body: `{"name": "string", "url": "https://example.com/hook", "events": ["task.created", "task.updated"], "secret": "string"}`
+- `PUT /webhooks/{webhook_id}` - Update webhook
+- `DELETE /webhooks/{webhook_id}` - Delete webhook
+- `POST /webhooks/{webhook_id}/test` - Test webhook delivery
+- `GET /webhooks/{webhook_id}/deliveries` - Get delivery history
+
+### Calendar Integration
+- `GET /calendar/integrations` - List calendar integrations
+- `POST /calendar/integrations` - Add calendar integration
+  - Body: `{"provider": "google|microsoft", "calendar_id": "string", "calendar_name": "string", "access_token": "string"}`
+- `PUT /calendar/integrations/{integration_id}` - Update integration
+- `DELETE /calendar/integrations/{integration_id}` - Remove integration
+- `POST /calendar/sync` - Manually trigger calendar sync
+- `GET /calendar/oauth/authorize` - Get OAuth URL for calendar
+- `POST /calendar/oauth/callback` - Handle OAuth callback
+
 ### Health Check
 - `GET /health` - Application health status
 
@@ -540,12 +730,55 @@ The project includes a comprehensive test suite with unit, integration, and end-
 - **Date Range Filtering**: All analytics support custom date ranges
 - **Project-specific Analytics**: Filter all metrics by specific projects
 
-## Database
+### Background Processing
+- **Asynchronous Task Processing**: Celery-based background job processing
+- **Scheduled Tasks**: Automatic processing of recurring tasks and reminders
+- **Email Notifications**: Background email sending with retry logic
+- **Webhook Delivery**: Reliable webhook delivery with exponential backoff
+- **Analytics Computation**: Pre-compute analytics data for better performance
+- **Notification Cleanup**: Automatic cleanup of old notifications
 
-The application uses SQLite as the database, which is automatically created as `tasks.db` when you first run the application. The database includes:
+### Integrations
+- **Calendar Sync**: Two-way sync with Google Calendar and Microsoft Outlook
+- **Webhook System**: Real-time event notifications to external systems
+- **Export/Import**: Data portability with CSV and Excel formats
+- **OAuth2 Support**: Secure authentication for external calendar services
 
-- **Users table**: Stores user credentials and profile information
-- **Tasks table**: Stores tasks with user association
+### Performance and Reliability
+- **Redis Caching**: High-performance caching for frequently accessed data
+- **Connection Pooling**: Efficient database connection management
+- **Pagination**: All list endpoints support pagination
+- **Bulk Operations**: Efficient bulk updates for multiple tasks
+- **Transaction Management**: ACID compliance for data integrity
+- **Error Recovery**: Automatic retry logic for failed operations
+
+## Database Schema
+
+The application uses PostgreSQL with the following main tables:
+
+- **users**: User accounts and authentication
+- **tasks**: Task records with all properties
+- **projects**: Project management with team collaboration
+- **project_members**: Project team membership and roles
+- **categories**: Task categorization
+- **tags**: Flexible tagging system
+- **task_tags**: Many-to-many relationship for task tags
+- **task_categories**: Many-to-many relationship for task categories
+- **task_dependencies**: Task dependency relationships
+- **task_shares**: Individual task sharing permissions
+- **comments**: Task comments with threading support
+- **comment_mentions**: User mentions in comments
+- **file_attachments**: File uploads attached to tasks
+- **notifications**: In-app notifications
+- **notification_preferences**: User notification settings
+- **task_reminders**: Scheduled task reminders
+- **recurring_task_templates**: Templates for recurring tasks
+- **webhook_subscriptions**: Webhook configuration
+- **webhook_deliveries**: Webhook delivery history
+- **calendar_integrations**: External calendar connections
+- **task_calendar_syncs**: Task-calendar sync mappings
+- **saved_searches**: User's saved search queries
+- **time_logs**: Time tracking entries
 
 ## Development
 
@@ -598,6 +831,30 @@ The application follows a clean architecture pattern with clear separation betwe
 3. **New Service**: Add business logic in `app/services/`
 4. **New Database Model**: Add SQLAlchemy model in `app/db/models.py`
 5. **Write Tests**: Add tests in appropriate `tests/` subdirectory
+
+### Webhook Events
+
+The following events are available for webhook subscriptions:
+- `task.created` - New task created
+- `task.updated` - Task updated
+- `task.deleted` - Task deleted
+- `task.completed` - Task marked as done
+- `task.assigned` - Task assigned to user
+- `comment.created` - Comment added to task
+- `comment.mention` - User mentioned in comment
+- `project.member_added` - Member added to project
+- `project.member_removed` - Member removed from project
+
+### Development Tips
+
+1. **Environment Setup**: Always use a virtual environment to avoid dependency conflicts
+2. **Database Migrations**: Run `alembic upgrade head` after pulling changes
+3. **Background Tasks**: Start Celery workers when testing features that use background processing
+4. **Redis Required**: Many features require Redis, ensure it's running
+5. **Test Data**: Use the factory classes in `tests/factories/` to generate test data
+6. **API Testing**: Use the Swagger UI at `/docs` for interactive API testing
+7. **Logging**: Check `app.log` for detailed application logs
+8. **Performance**: Use Redis caching for frequently accessed data
 
 ### Continuous Integration
 
