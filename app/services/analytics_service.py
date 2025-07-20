@@ -13,12 +13,15 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from app.db.models import (
     Task, TaskStatus, TaskPriority, Project, ProjectRole, Category, Tag, TimeLog
 )
+from app.core.config import settings
+from app.services.cache_service import cached, cache_service
 
 
 class AnalyticsService:
     """Service for generating analytics and reports."""
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_ANALYTICS, ttl=1800)  # Cache for 30 minutes
     def get_task_statistics(
         db: Session,
         user_id: str,
@@ -128,6 +131,7 @@ class AnalyticsService:
         }
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_ANALYTICS, ttl=3600)  # Cache for 1 hour
     def get_productivity_trends(
         db: Session,
         user_id: str,
@@ -303,6 +307,7 @@ class AnalyticsService:
         }
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_ANALYTICS, ttl=1800)  # Cache for 30 minutes
     def get_category_distribution(
         db: Session,
         user_id: str,
@@ -339,6 +344,7 @@ class AnalyticsService:
         ]
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_ANALYTICS, ttl=1800)  # Cache for 30 minutes
     def get_tag_distribution(
         db: Session,
         user_id: str,

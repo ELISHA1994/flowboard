@@ -4,16 +4,20 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.db.models import Task as TaskModel, TaskStatus, TaskPriority, TimeLog
 from app.core.logging import logger
+from app.core.config import settings
+from app.services.cache_service import cached, cache_service, invalidate_task_cache, invalidate_user_cache
 
 class TaskService:
     """Service layer for task-related business logic"""
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_TASKS, ttl=300)  # Cache for 5 minutes
     def get_user_task_count(db: Session, user_id: str) -> int:
         """Get the total number of tasks for a user"""
         return db.query(TaskModel).filter(TaskModel.user_id == user_id).count()
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_TASKS, ttl=180)  # Cache for 3 minutes
     def get_tasks_by_status(db: Session, user_id: str, status: TaskStatus) -> List[TaskModel]:
         """Get all tasks for a user with a specific status"""
         return db.query(TaskModel).filter(

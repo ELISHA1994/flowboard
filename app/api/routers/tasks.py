@@ -23,6 +23,8 @@ from app.services.task_dependency_service import TaskDependencyService
 from app.services.recurrence_service import RecurrenceService
 from app.services.calendar_service import CalendarService
 from app.services.notification_service import NotificationService
+from app.services.cache_service import invalidate_task_cache, invalidate_user_cache, cache_service
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -240,6 +242,14 @@ async def create_task(
     
     db.commit()
     db.refresh(db_task)
+    
+    # Invalidate relevant caches
+    invalidate_task_cache(db_task.id, current_user.id)
+    invalidate_user_cache(current_user.id)
+    if db_task.project_id:
+        cache_service.delete_pattern(f"*project:{db_task.project_id}*")
+    # Invalidate analytics cache
+    cache_service.delete_pattern(f"*{settings.CACHE_PREFIX_ANALYTICS}*")
     
     # Trigger webhook for task creation
     task_data_for_webhook = format_task_response(db_task)
@@ -463,6 +473,14 @@ async def update_task(
     db.commit()
     db.refresh(task)
     
+    # Invalidate relevant caches
+    invalidate_task_cache(task.id, current_user.id)
+    invalidate_user_cache(current_user.id)
+    if task.project_id:
+        cache_service.delete_pattern(f"*project:{task.project_id}*")
+    # Invalidate analytics cache
+    cache_service.delete_pattern(f"*{settings.CACHE_PREFIX_ANALYTICS}*")
+    
     # If the task status changed and it has a parent, update parent status
     if 'status' in update_data and task.parent_task_id:
         parent_task = db.query(TaskModel).filter(TaskModel.id == task.parent_task_id).first()
@@ -557,6 +575,14 @@ async def delete_task(
     
     db.delete(task)
     db.commit()
+    
+    # Invalidate relevant caches
+    invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+    if project_id:
+        cache_service.delete_pattern(f"*project:{project_id}*")
+    # Invalidate analytics cache
+    cache_service.delete_pattern(f"*{settings.CACHE_PREFIX_ANALYTICS}*")
     
     # Trigger webhook for task deletion
     WebhookService.trigger_webhook(

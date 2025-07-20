@@ -11,6 +11,8 @@ from app.db.models import (
     Task, TaskStatus, TaskPriority, User, Category, Tag,
     Project, ProjectRole, TaskShare
 )
+from app.core.config import settings
+from app.services.cache_service import cached, cache_service
 
 
 class SearchOperator(str, Enum):
@@ -89,6 +91,7 @@ class SearchService:
     }
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_SEARCH, ttl=120)  # Cache for 2 minutes
     def search_tasks(
         db: Session,
         user_id: str,
@@ -244,6 +247,7 @@ class SearchService:
         return query.all()
     
     @staticmethod
+    @cached(prefix=settings.CACHE_PREFIX_SEARCH, ttl=600)  # Cache for 10 minutes
     def get_suggested_filters(
         db: Session,
         user_id: str

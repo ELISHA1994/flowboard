@@ -29,3 +29,15 @@ class ForbiddenException(BaseException):
 
 class ValidationException(BaseException):
     """Raised when validation fails"""
+
+
+class CacheError(BaseException):
+    """Raised when cache operations fail"""
+
+
+class NotFoundError(NotFoundException):
+    """Alias for NotFoundException for backward compatibility"""
+
+
+class PermissionDeniedError(ForbiddenException):
+    """Alias for ForbiddenException for backward compatibility"""

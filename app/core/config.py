@@ -80,6 +80,21 @@ class Settings:
     ).split(",")
     SECURE_FILENAME_PATTERN: str = r"^[\w\-. ]+$"
     
+    # Redis Configuration
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
+    REDIS_MAX_CONNECTIONS: int = int(os.getenv("REDIS_MAX_CONNECTIONS", "10"))
+    REDIS_DEFAULT_TTL: int = int(os.getenv("REDIS_DEFAULT_TTL", "300"))  # 5 minutes default
+    
+    # Cache prefixes for different data types
+    CACHE_PREFIX_TASKS: str = "tasks:"
+    CACHE_PREFIX_USERS: str = "users:"
+    CACHE_PREFIX_SEARCH: str = "search:"
+    CACHE_PREFIX_ANALYTICS: str = "analytics:"
+    CACHE_PREFIX_SESSION: str = "session:"
+    
     @property
     def database_settings(self) -> Dict[str, Any]:
         """Get database connection settings based on DATABASE_URL"""
@@ -124,11 +139,39 @@ class Settings:
         """Check if running in test environment"""
         return self.TESTING or self.ENVIRONMENT.lower() == "testing"
     
+    @property
+    def redis_url(self) -> str:
+        """Build Redis URL from configuration."""
+        auth_part = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
+        return f"redis://{auth_part}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+    
     def get_database_url(self) -> str:
         """Get the appropriate database URL based on environment"""
         if self.is_testing:
             return self.TEST_DATABASE_URL
         return self.DATABASE_URL
+    
+    def get_redis_config(self) -> dict:
+        """Get Redis connection configuration."""
+        config = {
+            "host": self.REDIS_HOST,
+            "port": self.REDIS_PORT,
+            "db": self.REDIS_DB,
+            "max_connections": self.REDIS_MAX_CONNECTIONS,
+            "decode_responses": True,  # Automatically decode responses to strings
+            "retry_on_timeout": True,
+            "socket_connect_timeout": 5,
+            "socket_timeout": 5,
+        }
+        
+        if self.REDIS_PASSWORD:
+            config["password"] = self.REDIS_PASSWORD
+        
+        # Use different database for testing
+        if self.is_testing:
+            config["db"] = self.REDIS_DB + 1
+        
+        return config
 
 
 @lru_cache()
