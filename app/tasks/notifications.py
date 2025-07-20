@@ -1,6 +1,7 @@
 """
 Background tasks for sending notifications and emails.
 """
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
@@ -58,52 +59,53 @@ def send_email_notification(self, recipient_email: str, subject: str, content: s
         raise self.retry(countdown=60, max_retries=3)
 
 
-@celery_app.task(bind=True, base=DatabaseTask, queue="notifications")
-def send_task_assignment_notification(self, db: Session, task_id: str, assigned_to_id: str, assigned_by_id: str):
+@celery_app.task(bind=True, queue="notifications")
+def send_task_assignment_notification(self, task_id: str, assigned_to_id: str, assigned_by_id: str):
     """Send notification when a task is assigned to a user."""
     try:
-        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-        assigned_to = db.query(User).filter(User.id == assigned_to_id).first()
-        assigned_by = db.query(User).filter(User.id == assigned_by_id).first()
-        
-        if not task or not assigned_to or not assigned_by:
-            logger.warning(f"Missing data for task assignment notification: task={task_id}, assigned_to={assigned_to_id}, assigned_by={assigned_by_id}")
-            return {"success": False, "reason": "Missing data"}
-        
-        # Create in-app notification
-        notification = Notification(
-            user_id=assigned_to_id,
-            type="task_assigned",
-            title="New Task Assigned",
-            message=f"You have been assigned the task '{task.title}' by {assigned_by.username}",
-            data={
-                "task_id": task_id,
-                "assigned_by": assigned_by.username,
-                "task_title": task.title
-            }
-        )
-        db.add(notification)
-        db.commit()
-        
-        # Send email notification if user has email notifications enabled
-        # (Check user preferences in production)
-        subject = f"New Task Assigned: {task.title}"
-        content = f"""
-        <h2>New Task Assigned</h2>
-        <p>Hello {assigned_to.username},</p>
-        <p>You have been assigned a new task by {assigned_by.username}:</p>
-        <h3>{task.title}</h3>
-        <p><strong>Description:</strong> {task.description or 'No description provided'}</p>
-        <p><strong>Priority:</strong> {task.priority.value}</p>
-        <p><strong>Due Date:</strong> {task.due_date.strftime('%Y-%m-%d') if task.due_date else 'No due date set'}</p>
-        <p>Log in to view and manage your tasks.</p>
-        """
-        
-        # Queue email sending
-        send_email_notification.delay(assigned_to.email, subject, content, "task_assigned")
-        
-        logger.info(f"Task assignment notification sent for task {task_id} to user {assigned_to_id}")
-        return {"success": True, "notification_id": notification.id}
+        with get_db() as db:
+            task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+            assigned_to = db.query(User).filter(User.id == assigned_to_id).first()
+            assigned_by = db.query(User).filter(User.id == assigned_by_id).first()
+            
+            if not task or not assigned_to or not assigned_by:
+                logger.warning(f"Missing data for task assignment notification: task={task_id}, assigned_to={assigned_to_id}, assigned_by={assigned_by_id}")
+                return {"success": False, "reason": "Missing data"}
+            
+            # Create in-app notification
+            notification = Notification(
+                user_id=assigned_to_id,
+                type="task_assigned",
+                title="New Task Assigned",
+                message=f"You have been assigned the task '{task.title}' by {assigned_by.username}",
+                data=json.dumps({
+                    "task_id": task_id,
+                    "assigned_by": assigned_by.username,
+                    "task_title": task.title
+                })
+            )
+            db.add(notification)
+            db.commit()
+            
+            # Send email notification if user has email notifications enabled
+            # (Check user preferences in production)
+            subject = f"New Task Assigned: {task.title}"
+            content = f"""
+            <h2>New Task Assigned</h2>
+            <p>Hello {assigned_to.username},</p>
+            <p>You have been assigned a new task by {assigned_by.username}:</p>
+            <h3>{task.title}</h3>
+            <p><strong>Description:</strong> {task.description or 'No description provided'}</p>
+            <p><strong>Priority:</strong> {task.priority.value}</p>
+            <p><strong>Due Date:</strong> {task.due_date.strftime('%Y-%m-%d') if task.due_date else 'No due date set'}</p>
+            <p>Log in to view and manage your tasks.</p>
+            """
+            
+            # Queue email sending
+            send_email_notification.delay(assigned_to.email, subject, content, "task_assigned")
+            
+            logger.info(f"Task assignment notification sent for task {task_id} to user {assigned_to_id}")
+            return {"success": True, "notification_id": notification.id}
         
     except Exception as e:
         logger.error(f"Failed to send task assignment notification: {str(e)}")
@@ -233,53 +235,54 @@ def cleanup_expired_notifications(self, db: Session):
         raise self.retry(countdown=300, max_retries=3)
 
 
-@celery_app.task(bind=True, base=DatabaseTask, queue="notifications")
-def send_comment_mention_notification(self, db: Session, comment_id: str, mentioned_user_id: str):
+@celery_app.task(bind=True, queue="notifications")
+def send_comment_mention_notification(self, comment_id: str, mentioned_user_id: str):
     """Send notification when a user is mentioned in a comment."""
     try:
-        from app.db.models import Comment
-        
-        comment = db.query(Comment).filter(Comment.id == comment_id).first()
-        mentioned_user = db.query(User).filter(User.id == mentioned_user_id).first()
-        
-        if not comment or not mentioned_user:
-            logger.warning(f"Missing data for mention notification: comment={comment_id}, mentioned_user={mentioned_user_id}")
-            return {"success": False, "reason": "Missing data"}
-        
-        # Get the task this comment belongs to
-        task = comment.task
-        commenter = comment.user
-        
-        # Create in-app notification
-        notification = Notification(
-            user_id=mentioned_user_id,
-            type="comment_mention",
-            title="You were mentioned",
-            message=f"{commenter.username} mentioned you in a comment on task '{task.title}'",
-            data={
-                "comment_id": comment_id,
-                "task_id": task.id,
-                "task_title": task.title,
-                "commenter": commenter.username
-            }
-        )
-        db.add(notification)
-        db.commit()
-        
-        # Send email notification
-        subject = f"You were mentioned in a comment on '{task.title}'"
-        content = f"""
-        <h2>You were mentioned</h2>
-        <p>Hello {mentioned_user.username},</p>
-        <p>{commenter.username} mentioned you in a comment on the task '{task.title}':</p>
-        <blockquote>{comment.content}</blockquote>
-        <p>Log in to view the full conversation and respond.</p>
-        """
-        
-        send_email_notification.delay(mentioned_user.email, subject, content, "comment_mention")
-        
-        logger.info(f"Comment mention notification sent for comment {comment_id} to user {mentioned_user_id}")
-        return {"success": True, "notification_id": notification.id}
+        with get_db() as db:
+            from app.db.models import Comment
+            
+            comment = db.query(Comment).filter(Comment.id == comment_id).first()
+            mentioned_user = db.query(User).filter(User.id == mentioned_user_id).first()
+            
+            if not comment or not mentioned_user:
+                logger.warning(f"Missing data for mention notification: comment={comment_id}, mentioned_user={mentioned_user_id}")
+                return {"success": False, "reason": "Missing data"}
+            
+            # Get the task this comment belongs to
+            task = comment.task
+            commenter = comment.user
+            
+            # Create in-app notification
+            notification = Notification(
+                user_id=mentioned_user_id,
+                type="comment_mention",
+                title="You were mentioned",
+                message=f"{commenter.username} mentioned you in a comment on task '{task.title}'",
+                data=json.dumps({
+                    "comment_id": comment_id,
+                    "task_id": task.id,
+                    "task_title": task.title,
+                    "commenter": commenter.username
+                })
+            )
+            db.add(notification)
+            db.commit()
+            
+            # Send email notification
+            subject = f"You were mentioned in a comment on '{task.title}'"
+            content = f"""
+            <h2>You were mentioned</h2>
+            <p>Hello {mentioned_user.username},</p>
+            <p>{commenter.username} mentioned you in a comment on the task '{task.title}':</p>
+            <blockquote>{comment.content}</blockquote>
+            <p>Log in to view the full conversation and respond.</p>
+            """
+            
+            send_email_notification.delay(mentioned_user.email, subject, content, "comment_mention")
+            
+            logger.info(f"Comment mention notification sent for comment {comment_id} to user {mentioned_user_id}")
+            return {"success": True, "notification_id": notification.id}
         
     except Exception as e:
         logger.error(f"Failed to send comment mention notification: {str(e)}")

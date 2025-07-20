@@ -162,7 +162,7 @@ def test_cache_multi_operations():
     for key, expected_value in mapping.items():
         if key not in retrieved or retrieved[key] != expected_value:
             print(f"❌ Multi-get value mismatch for key {key}")
-            return False
+            assert False, f"Multi-get value mismatch for key {key}"
     
     print("✅ Multi-key operations work")
     
@@ -170,7 +170,7 @@ def test_cache_multi_operations():
     for key in keys:
         cache_service.delete(key)
     
-    return True
+    assert True, "Multi-key operations work correctly"
 
 def test_cache_configuration():
     """Test cache configuration."""

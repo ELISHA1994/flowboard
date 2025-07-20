@@ -94,12 +94,12 @@ def test_notification_service():
             NotificationService.process_pending_reminders(db)
             print("✅ Reminder processing task queued")
             
-            return True
+            assert True, "Test passed"
             
         except Exception as e:
             print(f"❌ Error: {e}")
             db.rollback()
-            return False
+            assert False, f"Test failed: {e}"
             
     finally:
         # Cleanup
@@ -141,12 +141,12 @@ def test_webhook_service():
             WebhookService.retry_failed_deliveries(db)
             print("✅ Webhook retry task queued")
             
-            return True
+            assert True, "Test passed"
             
         except Exception as e:
             print(f"❌ Error: {e}")
             db.rollback()
-            return False
+            assert False, f"Test failed: {e}"
             
     finally:
         db.close()
@@ -163,12 +163,12 @@ def test_recurrence_service():
         RecurrenceService.process_recurring_tasks(db)
         print("✅ Recurring task processing queued")
         
-        return True
+        assert True, "Recurrence service test passed"
         
     except Exception as e:
         print(f"❌ Error: {e}")
         db.rollback()
-        return False
+        assert False, f"Recurrence service test failed: {e}"
         
     finally:
         db.close()

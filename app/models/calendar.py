@@ -3,7 +3,7 @@ Pydantic models for calendar integration functionality.
 """
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -51,11 +51,7 @@ class CalendarIntegrationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CalendarOAuthCallback(BaseModel):
@@ -94,11 +90,7 @@ class TaskCalendarSyncResponse(BaseModel):
     calendar_event_id: str
     last_synced_at: datetime
     
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CalendarEventCreate(BaseModel):

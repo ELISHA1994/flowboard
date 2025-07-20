@@ -106,7 +106,7 @@ class BulkOperation(str, Enum):
 
 class BulkOperationRequest(BaseModel):
     """Request model for bulk operations"""
-    task_ids: List[str] = Field(..., min_items=1, description="List of task IDs to operate on")
+    task_ids: List[str] = Field(..., min_length=1, description="List of task IDs to operate on")
     operation: BulkOperation = Field(..., description="Operation to perform")
     value: Optional[Any] = Field(None, description="Value for the operation")
     

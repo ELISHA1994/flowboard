@@ -32,10 +32,10 @@ def test_celery_connection():
         backend.get("test-key")  # This will test the connection
         print("✅ Result backend connection successful")
         
-        return True
+        assert True, "Connection successful"
     except Exception as e:
         print(f"❌ Connection failed: {e}")
-        return False
+        assert False, f"Connection failed: {e}"
 
 
 def test_task_registration():
@@ -69,10 +69,10 @@ def test_task_registration():
     
     if missing_tasks:
         print(f"❌ Missing tasks: {missing_tasks}")
-        return False
+        assert False, f"Missing tasks: {missing_tasks}"
     
     print(f"✅ All {len(expected_tasks)} expected tasks are registered")
-    return True
+    assert True, "All tasks registered"
 
 
 def test_queue_configuration():
@@ -87,9 +87,9 @@ def test_queue_configuration():
             print(f"✅ Queue '{queue}' configured")
         else:
             print(f"❌ Queue '{queue}' missing")
-            return False
+            assert False, f"Queue '{queue}' missing"
     
-    return True
+    assert True, "All queues configured"
 
 
 def test_periodic_tasks():
@@ -110,9 +110,9 @@ def test_periodic_tasks():
             print(f"✅ {task_name}: {task_config['task']} (every {task_config['schedule']}s)")
         else:
             print(f"❌ Periodic task '{task_name}' not configured")
-            return False
+            assert False, f"Periodic task '{task_name}' not configured"
     
-    return True
+    assert True, "All periodic tasks configured"
 
 
 def test_debug_task():
@@ -136,10 +136,10 @@ def test_debug_task():
             except Exception:
                 print("⏳ Debug task queued but still running (this is normal)")
         
-        return True
+        assert True, "Debug task executed successfully"
     except Exception as e:
         print(f"❌ Debug task failed: {e}")
-        return False
+        assert False, f"Debug task failed: {e}"
 
 
 def test_task_routing():
@@ -163,7 +163,7 @@ def test_task_routing():
                 print(f"✅ {task_name} → {expected_queue}")
             else:
                 print(f"❌ {task_name} → {actual_queue} (expected {expected_queue})")
-                return False
+                assert False, f"Task routing incorrect: {task_name} → {actual_queue} (expected {expected_queue})"
         else:
             # Check pattern matching
             matched = False
@@ -177,9 +177,9 @@ def test_task_routing():
             
             if not matched:
                 print(f"❌ No routing rule found for {task_name}")
-                return False
+                assert False, f"No routing rule found for {task_name}"
     
-    return True
+    assert True, "All task routing configured correctly"
 
 
 def test_redis_queues():
@@ -200,10 +200,10 @@ def test_redis_queues():
             length = r.llen(queue)
             print(f"✅ Queue '{queue}': {length} tasks")
         
-        return True
+        assert True, "Redis queues working correctly"
     except Exception as e:
         print(f"❌ Redis queue test failed: {e}")
-        return False
+        assert False, f"Redis queue test failed: {e}"
 
 
 def test_configuration():
@@ -225,9 +225,9 @@ def test_configuration():
             print(f"✅ {config_key}: {actual_value}")
         else:
             print(f"❌ {config_key}: {actual_value} (expected {expected_value})")
-            return False
+            assert False, f"Configuration mismatch: {config_key}: {actual_value} (expected {expected_value})"
     
-    return True
+    assert True, "All configuration values correct"
 
 
 def main():

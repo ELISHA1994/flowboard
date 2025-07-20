@@ -3,7 +3,7 @@ Pydantic models for notification functionality.
 """
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -48,11 +48,7 @@ class NotificationResponse(BaseModel):
     read_at: Optional[datetime]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationMarkRead(BaseModel):
@@ -79,11 +75,7 @@ class NotificationPreferenceResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskReminderCreate(BaseModel):
@@ -112,11 +104,7 @@ class TaskReminderResponse(BaseModel):
     sent_at: Optional[datetime]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskDueDateRemindersCreate(BaseModel):

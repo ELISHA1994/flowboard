@@ -3,7 +3,7 @@ Pydantic models for webhook functionality.
 """
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, ConfigDict
 
 
 class WebhookSubscriptionCreate(BaseModel):
@@ -35,11 +35,7 @@ class WebhookSubscriptionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WebhookDeliveryResponse(BaseModel):
@@ -53,11 +49,7 @@ class WebhookDeliveryResponse(BaseModel):
     retry_count: int
     next_retry_at: Optional[datetime]
     
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WebhookTestRequest(BaseModel):

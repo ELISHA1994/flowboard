@@ -91,7 +91,6 @@ class SearchService:
     }
     
     @staticmethod
-    @cached(prefix=settings.CACHE_PREFIX_SEARCH, ttl=120)  # Cache for 2 minutes
     def search_tasks(
         db: Session,
         user_id: str,
