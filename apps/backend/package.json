@@ -1,0 +1,25 @@
+{
+  "name": "@taskman/backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "start": "uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "test": "pytest",
+    "test:unit": "pytest -m unit",
+    "test:integration": "pytest -m integration",
+    "test:e2e": "pytest -m e2e",
+    "lint": "black . --check && flake8 app tests && mypy app tests",
+    "format": "black . && isort app tests",
+    "type-check": "mypy app tests",
+    "migrate": "alembic upgrade head",
+    "migrate:generate": "alembic revision --autogenerate -m",
+    "generate:schema": "python scripts/generate_openapi.py",
+    "clean": "find . -type d -name '__pycache__' -exec rm -rf {} + && rm -rf .pytest_cache htmlcov .coverage",
+    "celery:worker": "celery -A app.tasks worker --loglevel=info",
+    "celery:beat": "celery -A app.tasks beat --loglevel=info",
+    "celery:flower": "celery -A app.tasks flower"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

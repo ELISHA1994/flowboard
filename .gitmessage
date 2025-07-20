@@ -1,0 +1,31 @@
+# <type>(<scope>): <subject> (Max 100 chars)
+# |<----   Using a Maximum Of 100 Characters   ---->|
+
+# Explain why this change is being made
+# |<----   Try To Limit Each Line to a Maximum Of 72 Characters   ---->|
+
+# Provide links or keys to any relevant tickets, articles or resources
+# Example: Closes #23
+
+# --- COMMIT END ---
+# Type can be:
+#   feat     (new feature)
+#   fix      (bug fix)
+#   docs     (changes to documentation)
+#   style    (formatting, missing semicolons, etc; no code change)
+#   refactor (refactoring code)
+#   perf     (performance improvements)
+#   test     (adding or refactoring tests; no production code change)
+#   build    (changes to build system or dependencies)
+#   ci       (changes to CI configuration)
+#   chore    (other changes that don't modify src or test files)
+#   revert   (reverting a previous commit)
+#
+# Scope can be:
+#   root, backend, web, shared, docker, deps, release, ci, docs
+#
+# Remember to:
+#   - Use present tense ("add" not "added")
+#   - Use lowercase
+#   - Don't end with a period
+#   - Separate subject from body with blank line

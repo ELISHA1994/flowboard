@@ -1,0 +1,33 @@
+# Development overrides for docker-compose
+# This file is automatically loaded by docker-compose in development
+
+version: "3.8"
+
+services:
+  backend:
+    environment:
+      - DEBUG=True
+      - RELOAD=True
+    volumes:
+      # Mount source code for hot reloading
+      - ./apps/backend:/app
+      # Exclude virtual environment
+      - /app/.venv
+
+  # Future web service when frontend is added
+  # web:
+  #   build:
+  #     context: ./apps/web
+  #     dockerfile: Dockerfile.dev
+  #   container_name: taskman-web
+  #   volumes:
+  #     - ./apps/web:/app
+  #     - /app/node_modules
+  #     - /app/.next
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://localhost:8000
+  #   depends_on:
+  #     - backend
+  #   command: pnpm dev

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env*"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "build/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**", "htmlcov/**", ".coverage"],
+      "env": ["DATABASE_URL", "REDIS_HOST", "TESTING"]
+    },
+    "test:unit": {
+      "outputs": ["coverage/**", "htmlcov/**"],
+      "cache": true
+    },
+    "test:integration": {
+      "outputs": ["coverage/**", "htmlcov/**"],
+      "cache": false,
+      "env": ["DATABASE_URL", "REDIS_HOST"]
+    },
+    "test:e2e": {
+      "outputs": ["coverage/**", "htmlcov/**"],
+      "cache": false,
+      "env": ["DATABASE_URL", "REDIS_HOST"]
+    },
+    "lint": {
+      "outputs": []
+    },
+    "format": {
+      "outputs": []
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    },
+    "generate:schema": {
+      "outputs": ["openapi.json"],
+      "cache": false
+    },
+    "migrate": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    }
+  }
+}

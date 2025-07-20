@@ -1,40 +1,277 @@
-# Task Management API - Clean Architecture
+# Task Management System - Monorepo
 
-A scalable FastAPI application following clean architecture principles with JWT authentication, PostgreSQL database persistence, and comprehensive task management features.
+A modern task management system built as a monorepo containing a FastAPI backend with clean architecture principles, and prepared for a Next.js frontend. Features JWT authentication, PostgreSQL database, Redis caching, Celery background tasks, and comprehensive task management capabilities.
 
-## Quick Start
+> **Note for Existing Users**: This repository has been converted to a monorepo structure. The backend code is now located in `apps/backend/`. All existing functionality remains the same, but the development workflow has been improved with Turborepo and pnpm workspaces.
+> 
+> **Migration Guide**: If you have an existing clone:
+> 1. Pull the latest changes: `git pull`
+> 2. Install pnpm: `npm install -g pnpm`
+> 3. Install dependencies: `pnpm install`
+> 4. Update your scripts to use the new commands (see below)
+
+## 🏗️ Why Monorepo?
+
+This project uses a monorepo structure with **pnpm workspaces** and **Turborepo** for several benefits:
+
+- **🚀 Unified Development**: Single repository for backend and future frontend
+- **⚡ Optimized Builds**: Turborepo provides intelligent caching and parallel execution
+- **📦 Shared Dependencies**: Common packages and types shared across applications
+- **🔄 Atomic Changes**: Backend and frontend changes can be made in the same commit
+- **🛠️ Consistent Tooling**: Shared linting, formatting, and build configurations
+- **💾 Efficient Storage**: pnpm's content-addressable storage saves disk space
+
+## 🚀 Quick Start
+
+### Option 1: One-Command Setup (Recommended)
+
+```bash
+# Clone and setup everything
+git clone <repository-url>
+cd task-management-monorepo
+./setup.sh
+
+# That's it! Services are running at:
+# - API Documentation: http://localhost:8000/docs
+# - Flower (Celery UI): http://localhost:5555
+```
+
+### Option 2: Docker Compose
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd turing_interview
+cd task-management-monorepo
 
-# Create virtual environment and install dependencies
+# Install pnpm and dependencies
+npm install -g pnpm
+pnpm install
+
+# Start all services with Docker
+pnpm docker:up
+
+# Run database migrations
+docker-compose exec backend alembic upgrade head
+
+# View logs
+pnpm docker:logs
+```
+
+### Option 3: Manual Setup
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd task-management-monorepo
+
+# Install pnpm (if not already installed)
+npm install -g pnpm
+
+# Install dependencies
+pnpm install
+
+# Backend setup
+cd apps/backend
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# Set up PostgreSQL and Redis (must be installed)
+# Set up PostgreSQL and Redis (must be installed locally)
 python scripts/setup_postgres.py
 alembic upgrade head
 
-# Create .env file with minimal config
-echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
-echo "DB_NAME=taskmanager" >> .env
-echo "DB_USER=taskmanageruser" >> .env
-echo "DB_PASSWORD=taskmanagerpass" >> .env
+# Create .env file
+cp .env.example .env
+# Edit .env with your configuration
 
-# Start the application
-uvicorn app.main:app --reload
-
-# Access the API documentation
-# Open http://localhost:8000/docs in your browser
+# Return to root and start services
+cd ../..
+pnpm dev:backend  # Backend only
+# OR
+pnpm dev         # All services
 ```
 
-## Project Structure
+## 📁 Monorepo Structure
 
 ```
-app/
+task-management-monorepo/
+├── apps/
+│   ├── backend/              # FastAPI backend application
+│   │   ├── app/             # Application source code
+│   │   │   ├── api/         # API endpoints and routing
+│   │   │   ├── core/        # Core components (config, auth, logging)
+│   │   │   ├── db/          # Database models and connection
+│   │   │   ├── models/      # Pydantic DTOs
+│   │   │   ├── services/    # Business logic layer
+│   │   │   ├── tasks/       # Celery background tasks
+│   │   │   └── utils/       # Utilities
+│   │   ├── tests/           # Test suite
+│   │   ├── scripts/         # Utility scripts
+│   │   ├── migrations/      # Database migrations
+│   │   ├── requirements.txt # Python dependencies
+│   │   ├── Dockerfile       # Production Docker image
+│   │   └── package.json     # NPM scripts for Turborepo
+│   └── web/                 # Next.js frontend (future)
+├── packages/
+│   ├── types/               # Shared TypeScript types
+│   ├── ui/                  # Shared UI components
+│   └── config/              # Shared configurations
+├── docker-compose.yml       # Local development environment
+├── turbo.json              # Turborepo configuration
+├── pnpm-workspace.yaml     # pnpm workspace configuration
+└── package.json            # Root package scripts
+```
+
+## 🛠️ Technology Stack
+
+### Backend (FastAPI)
+- **Framework**: FastAPI with Python 3.11+
+- **Database**: PostgreSQL with SQLAlchemy ORM
+- **Cache**: Redis for caching and Celery broker
+- **Authentication**: JWT tokens with bcrypt password hashing
+- **Background Tasks**: Celery with scheduled tasks
+- **API Documentation**: Auto-generated OpenAPI/Swagger
+
+### Infrastructure
+- **Monorepo Tool**: Turborepo for build optimization
+- **Package Manager**: pnpm for efficient dependency management
+- **Containerization**: Docker & Docker Compose
+- **Development**: Hot reloading with volume mounts
+- **Git Hooks**: Husky for pre-commit and commit-msg hooks
+- **Code Quality**: commitlint for conventional commits, lint-staged for pre-commit checks
+
+## 🎯 Monorepo Commands
+
+All commands should be run from the repository root directory:
+
+### Development Commands
+
+```bash
+# Start services
+pnpm dev                 # Start all services (backend + future frontend)
+pnpm dev:backend        # Start only backend service
+pnpm dev:web           # Start only frontend (when available)
+
+# Docker management
+pnpm docker:up         # Start all services with Docker Compose
+pnpm docker:down       # Stop all Docker services
+pnpm docker:logs       # View real-time logs from all services
+```
+
+### Testing Commands
+
+```bash
+# Run tests
+pnpm test              # Run all tests across the monorepo
+pnpm test:backend      # Run only backend tests
+
+# Backend-specific test commands (must cd to apps/backend/ first)
+cd apps/backend
+make test              # Run all backend tests
+make test-unit         # Run unit tests only
+make test-integration  # Run integration tests only
+make test-e2e         # Run end-to-end tests only
+make coverage          # Generate test coverage report
+
+# OR use pnpm filters from root (no cd needed)
+pnpm --filter @taskman/backend exec make test
+pnpm --filter @taskman/backend exec make coverage
+```
+
+### Code Quality Commands
+
+```bash
+# From monorepo root
+pnpm lint              # Lint all code in the monorepo
+pnpm format            # Auto-format all code
+pnpm type-check        # Run TypeScript type checking
+
+# Backend-specific (must cd to apps/backend/ first)
+cd apps/backend
+make lint              # Run Python linters (black, flake8, mypy)
+make format            # Format Python code with black and isort
+
+# OR use pnpm filters from root (no cd needed)
+pnpm --filter @taskman/backend exec make lint
+pnpm --filter @taskman/backend exec make format
+```
+
+### Build & Deployment Commands
+
+```bash
+# Building
+pnpm build             # Build all applications
+pnpm clean             # Clean all build artifacts and caches
+
+# Type generation
+pnpm generate:types    # Generate TypeScript types from FastAPI OpenAPI schema
+```
+
+### Backend-Specific Commands
+
+These commands **must be run from the `apps/backend/` directory**:
+
+```bash
+# First, navigate to the backend directory
+cd apps/backend
+
+# Database operations
+make migrate           # Run database migrations
+alembic revision --autogenerate -m "description"  # Create new migration
+
+# Python environment setup
+python -m venv .venv   # Create virtual environment
+source .venv/bin/activate  # Activate virtual environment (Windows: .venv\Scripts\activate)
+pip install -r requirements.txt  # Install Python dependencies
+
+# Running tests from backend directory
+make test              # Run all backend tests
+make test-unit         # Run unit tests only
+make test-integration  # Run integration tests only
+make coverage          # Generate coverage report
+
+# Code quality from backend directory
+make lint              # Run Python linters
+make format            # Format Python code
+
+# Celery (Background Tasks) - also from apps/backend/
+./scripts/celery/start_all.sh    # Start all Celery components
+./scripts/celery/start_worker.sh  # Start Celery worker only
+./scripts/celery/start_beat.sh    # Start Celery beat scheduler
+./scripts/celery/monitor.sh watch # Monitor Celery tasks
+```
+
+**Alternative**: You can also run backend commands from the root using pnpm filters:
+```bash
+# From monorepo root - no need to cd into backend
+pnpm --filter @taskman/backend test
+pnpm --filter @taskman/backend lint
+pnpm --filter @taskman/backend migrate
+```
+
+### Troubleshooting Commands
+
+```bash
+# Clear caches
+pnpm clean             # Clear all build caches
+rm -rf .turbo          # Clear Turborepo cache
+rm -rf node_modules    # Clear node_modules (then run pnpm install)
+
+# Check service status
+docker-compose ps      # Check Docker container status
+docker-compose logs backend -f  # View backend logs
+docker-compose logs postgres -f # View database logs
+
+# Database operations
+docker-compose exec backend alembic history  # View migration history
+docker-compose exec backend alembic current  # Check current migration
+docker-compose exec postgres psql -U taskmanageruser -d taskmanager  # Access database
+```
+
+## 📚 Backend Project Structure
+
+```
+apps/backend/app/
 ├── api/                 # API endpoints and routing
 │   ├── main.py         # Main API router aggregator
 │   ├── endpoints/      # Additional endpoint modules
@@ -134,10 +371,83 @@ docs/                  # Documentation
 └── API_DOCUMENTATION.md   # Detailed API docs
 ```
 
+## 💡 Working with the Monorepo
+
+### Adding Dependencies
+
+```bash
+# Add a dependency to the backend
+pnpm --filter @taskman/backend add <package-name>
+
+# Add a dev dependency to the root
+pnpm add -D -w <package-name>
+
+# Add Python dependencies (from apps/backend/)
+cd apps/backend
+pip install <package-name>
+pip freeze > requirements.txt
+```
+
+### Running Commands in Specific Workspaces
+
+```bash
+# Run any command in a specific workspace
+pnpm --filter @taskman/backend <command>
+
+# Examples:
+pnpm --filter @taskman/backend test
+pnpm --filter @taskman/backend generate:schema
+```
+
+### Environment Variables
+
+1. **For Docker Development**: Environment variables are set in `docker-compose.yml`
+2. **For Local Development**: Create `.env` file in `apps/backend/`:
+   ```bash
+   cd apps/backend
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+### Common Development Workflows
+
+#### Starting Fresh
+```bash
+./setup.sh  # Installs everything and starts services
+```
+
+#### Daily Development
+```bash
+pnpm docker:up    # Start services
+pnpm dev:backend  # Start backend with hot reload
+pnpm docker:logs  # Monitor logs in another terminal
+```
+
+#### Running Tests
+```bash
+pnpm test:backend  # Quick test run
+cd apps/backend && make coverage  # Detailed coverage report
+```
+
+#### Database Changes
+```bash
+# Create a new migration
+cd apps/backend
+alembic revision --autogenerate -m "add new feature"
+alembic upgrade head  # Apply migration
+
+# With Docker
+docker-compose exec backend alembic revision --autogenerate -m "add new feature"
+docker-compose exec backend alembic upgrade head
+```
+
 ## Prerequisites
 
-- Python 3.8+
-- Virtual environment (venv)
+- Python 3.11+
+- Node.js 18+ and npm
+- Docker and Docker Compose (for containerized development)
+- PostgreSQL 15+ (for local development without Docker)
+- Redis 7+ (for local development without Docker)
 
 ## Installation
 
@@ -504,6 +814,24 @@ The project includes a comprehensive test suite with unit, integration, and end-
      -d '{"title": "My First Task", "description": "Testing the API"}'
    ```
 
+## 🌐 Available Services
+
+When running with Docker (`pnpm docker:up` or `./setup.sh`):
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **FastAPI Backend** | http://localhost:8000 | Main API server |
+| **Swagger UI** | http://localhost:8000/docs | Interactive API documentation |
+| **ReDoc** | http://localhost:8000/redoc | Alternative API documentation |
+| **Flower** | http://localhost:5555 | Celery task monitoring UI |
+| **PostgreSQL** | localhost:5432 | Database (credentials in docker-compose.yml) |
+| **Redis** | localhost:6379 | Cache and message broker |
+
+### Health Checks
+
+- API Health: http://localhost:8000/health
+- All services include Docker health checks for automatic recovery
+
 ## Architecture Benefits
 
 - **Separation of Concerns**: Clear boundaries between layers
@@ -780,6 +1108,56 @@ The application uses PostgreSQL with the following main tables:
 - **saved_searches**: User's saved search queries
 - **time_logs**: Time tracking entries
 
+## Git Workflow
+
+### Commit Guidelines
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for consistent commit messages. All commits are validated by commitlint.
+
+#### Commit Format
+```
+<type>(<scope>): <subject>
+```
+
+#### Types
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `build`: Build system or dependency changes
+- `ci`: CI/CD changes
+- `chore`: Other changes
+
+#### Scopes
+- `root`: Root-level changes
+- `backend`: Backend application
+- `web`: Frontend application (future)
+- `docker`: Docker-related changes
+- `deps`: Dependencies
+
+#### Examples
+```bash
+feat(backend): add task priority filtering
+fix(backend): resolve JWT token expiration issue
+docs(root): update API documentation
+chore(deps): update fastapi to 0.115.0
+```
+
+### Git Hooks
+
+The repository uses Git hooks to ensure code quality:
+
+- **pre-commit**: Runs lint-staged to format and lint changed files
+- **commit-msg**: Validates commit message format
+
+To set a custom commit message template:
+```bash
+git config --local commit.template .gitmessage
+```
+
 ## Development
 
 ### Test-Driven Development
@@ -872,6 +1250,35 @@ To run tests locally before pushing:
 make test
 make lint  # If linting is configured
 ```
+
+## 📋 Quick Reference
+
+### Essential Commands
+```bash
+# First time setup
+./setup.sh
+
+# Daily development
+pnpm docker:up         # Start all services
+pnpm dev:backend       # Start backend with hot reload
+pnpm test:backend      # Run tests
+pnpm docker:logs       # View logs
+
+# Stop everything
+pnpm docker:down
+```
+
+### Service URLs
+- API Docs: http://localhost:8000/docs
+- Celery UI: http://localhost:5555
+- Health Check: http://localhost:8000/health
+
+### Project Locations
+- Backend Code: `apps/backend/`
+- API Endpoints: `apps/backend/app/api/`
+- Business Logic: `apps/backend/app/services/`
+- Database Models: `apps/backend/app/db/models.py`
+- Tests: `apps/backend/tests/`
 
 ## License
 

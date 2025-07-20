@@ -202,3 +202,41 @@ secrets/
 
 # File uploads
 uploads/
+
+# Monorepo specific
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+
+# Turborepo
+.turbo/
+turbo-*.log
+
+# Next.js (for future frontend)
+.next/
+out/
+next-env.d.ts
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Package manager logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# Generated files
+openapi.json
+apps/backend/openapi.json
