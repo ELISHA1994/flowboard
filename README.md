@@ -1,6 +1,6 @@
 # Task Management API - Clean Architecture
 
-A scalable FastAPI application following clean architecture principles with JWT authentication, SQLite database persistence, and comprehensive task management features.
+A scalable FastAPI application following clean architecture principles with JWT authentication, PostgreSQL database persistence, and comprehensive task management features.
 
 ## Project Structure
 
@@ -71,10 +71,41 @@ tests/                  # Comprehensive test suite
    Or install manually:
    ```bash
    # Core dependencies
-   pip install fastapi uvicorn sqlalchemy python-jose[cryptography] bcrypt python-multipart email-validator python-dotenv
+   pip install fastapi uvicorn sqlalchemy psycopg2-binary python-jose[cryptography] bcrypt python-multipart email-validator python-dotenv
    
    # Test dependencies
    pip install pytest pytest-asyncio pytest-cov httpx factory-boy faker
+   ```
+
+## Database Setup
+
+### PostgreSQL Setup
+
+1. **Install PostgreSQL:**
+   - macOS: `brew install postgresql`
+   - Ubuntu/Debian: `sudo apt-get install postgresql postgresql-contrib`
+   - Windows: Download from [postgresql.org](https://www.postgresql.org/download/)
+
+2. **Create database and user:**
+   ```bash
+   # Access PostgreSQL prompt
+   sudo -u postgres psql
+   
+   # Create user and databases
+   CREATE USER taskmanageruser WITH PASSWORD 'taskmanagerpass';
+   CREATE DATABASE taskmanager OWNER taskmanageruser;
+   CREATE DATABASE taskmanager_test OWNER taskmanageruser;
+   \q
+   ```
+
+3. **Run setup script:**
+   ```bash
+   python scripts/setup_postgres.py
+   ```
+
+4. **Run migrations:**
+   ```bash
+   alembic upgrade head
    ```
 
 ## Configuration
@@ -86,6 +117,13 @@ tests/                  # Comprehensive test suite
    SECRET_KEY=your-secret-key-here
    ALGORITHM=HS256
    ACCESS_TOKEN_EXPIRE_MINUTES=30
+   
+   # Database Configuration
+   DB_HOST=127.0.0.1
+   DB_NAME=taskmanager
+   DB_USER=taskmanageruser
+   DB_PASSWORD=taskmanagerpass
+   DB_PORT=5432
    
    # File Upload Configuration
    UPLOAD_DIR=uploads

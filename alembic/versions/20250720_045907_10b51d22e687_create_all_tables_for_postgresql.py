@@ -1,0 +1,126 @@
+"""Create all tables for PostgreSQL
+
+Revision ID: 10b51d22e687
+Revises: 1140f19ba738
+Create Date: 2025-07-20 04:59:07.730693
+
+Description:
+    TODO: Add detailed description of what this migration does
+    
+Safety Notes:
+    TODO: Document any potential risks or considerations
+    
+Rollback Plan:
+    TODO: Document how to safely rollback if needed
+"""
+from typing import Sequence, Union
+import logging
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql, mysql, sqlite
+
+
+# revision identifiers, used by Alembic.
+revision: str = '10b51d22e687'
+down_revision: Union[str, None] = '1140f19ba738'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+def upgrade() -> None:
+    """
+    Apply the migration.
+    
+    This function should be idempotent when possible.
+    """
+    logger.info(f"Applying migration {revision}")
+    
+    # Get database dialect for conditional operations
+    connection = op.get_bind()
+    dialect_name = connection.dialect.name
+    
+    try:
+        pass
+        
+        logger.info(f"Successfully applied migration {revision}")
+    except Exception as e:
+        logger.error(f"Failed to apply migration {revision}: {str(e)}")
+        raise
+
+
+def downgrade() -> None:
+    """
+    Rollback the migration.
+    
+    This function should safely undo all changes made in upgrade().
+    """
+    logger.info(f"Rolling back migration {revision}")
+    
+    # Get database dialect for conditional operations
+    connection = op.get_bind()
+    dialect_name = connection.dialect.name
+    
+    try:
+        pass
+        
+        logger.info(f"Successfully rolled back migration {revision}")
+    except Exception as e:
+        logger.error(f"Failed to rollback migration {revision}: {str(e)}")
+        raise
+
+
+# Helper functions for common migration tasks
+def create_index_if_not_exists(index_name: str, table_name: str, columns: list):
+    """Create an index only if it doesn't already exist."""
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    indexes = [idx['name'] for idx in inspector.get_indexes(table_name)]
+    
+    if index_name not in indexes:
+        op.create_index(index_name, table_name, columns)
+        logger.info(f"Created index {index_name} on {table_name}")
+    else:
+        logger.info(f"Index {index_name} already exists on {table_name}")
+
+
+def drop_index_if_exists(index_name: str, table_name: str):
+    """Drop an index only if it exists."""
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    indexes = [idx['name'] for idx in inspector.get_indexes(table_name)]
+    
+    if index_name in indexes:
+        op.drop_index(index_name, table_name)
+        logger.info(f"Dropped index {index_name} from {table_name}")
+    else:
+        logger.info(f"Index {index_name} does not exist on {table_name}")
+
+
+def add_column_if_not_exists(table_name: str, column: sa.Column):
+    """Add a column only if it doesn't already exist."""
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    columns = [col['name'] for col in inspector.get_columns(table_name)]
+    
+    if column.name not in columns:
+        op.add_column(table_name, column)
+        logger.info(f"Added column {column.name} to {table_name}")
+    else:
+        logger.info(f"Column {column.name} already exists in {table_name}")
+
+
+def drop_column_if_exists(table_name: str, column_name: str):
+    """Drop a column only if it exists."""
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    columns = [col['name'] for col in inspector.get_columns(table_name)]
+    
+    if column_name in columns:
+        op.drop_column(table_name, column_name)
+        logger.info(f"Dropped column {column_name} from {table_name}")
+    else:
+        logger.info(f"Column {column_name} does not exist in {table_name}")

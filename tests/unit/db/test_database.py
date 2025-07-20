@@ -16,9 +16,12 @@ class TestDatabaseConfiguration:
     def test_database_url_configuration(self):
         """Test that database URL is correctly configured."""
         from app.core.config import settings
-        assert settings.DATABASE_URL == "sqlite:///./tasks.db"
-        assert "sqlite" in settings.DATABASE_URL
-        assert "tasks.db" in settings.DATABASE_URL
+        # Should work with both SQLite and PostgreSQL
+        assert settings.DATABASE_URL is not None
+        assert any(db_type in settings.DATABASE_URL for db_type in ["sqlite", "postgresql", "mysql"])
+        # In production, we use PostgreSQL
+        if "postgresql" in settings.DATABASE_URL:
+            assert "taskmanager" in settings.DATABASE_URL
     
     def test_engine_configuration(self):
         """Test that engine is correctly configured."""
@@ -31,9 +34,12 @@ class TestDatabaseConfiguration:
         assert hasattr(database.engine, 'dispose')
         assert hasattr(database.engine, 'url')
         
-        # Verify SQLite specific configuration
-        # The engine should have connect_args for SQLite
-        assert database.engine.url.drivername == 'sqlite'
+        # Verify database driver is correctly configured
+        from app.core.config import settings
+        if "postgresql" in settings.DATABASE_URL:
+            assert database.engine.url.drivername in ['postgresql', 'postgresql+psycopg2']
+        elif "sqlite" in settings.DATABASE_URL:
+            assert database.engine.url.drivername == 'sqlite'
     
     def test_session_local_configuration(self):
         """Test that SessionLocal is correctly configured."""
@@ -183,28 +189,39 @@ class TestDatabaseConstants:
         assert hasattr(database, 'declarative_base')
         assert hasattr(database, 'sessionmaker')
     
-    def test_sqlite_configuration(self):
-        """Test SQLite specific configuration."""
-        # Engine should be created with SQLite specific args
-        # This is a bit of implementation detail testing, but important for SQLite
+    def test_database_configuration(self):
+        """Test database-specific configuration."""
         from app.core.config import settings
-        assert "sqlite" in settings.DATABASE_URL.lower()
         
-        # Verify the database file path
-        from app.core.config import settings
-        db_path = settings.DATABASE_URL.split("///")[-1]
-        assert db_path == "./tasks.db"
+        # Verify we have a valid database URL
+        assert settings.DATABASE_URL is not None
+        
+        # Check database-specific settings
+        if "postgresql" in settings.DATABASE_URL:
+            # For PostgreSQL, verify connection parameters
+            assert settings.DB_HOST
+            assert settings.DB_PORT
+            assert settings.DB_NAME
+            assert settings.DB_USER
+        elif "sqlite" in settings.DATABASE_URL:
+            # For SQLite, verify file path
+            db_path = settings.DATABASE_URL.split("///")[-1]
+            assert db_path
     
     def test_engine_creation_verification(self):
-        """Test that engine was created with SQLite configuration."""
+        """Test that engine was created with correct database configuration."""
         # Since the engine is created at module import time,
         # we can only verify its current state
+        from app.core.config import settings
         
-        # Verify engine URL
-        assert str(database.engine.url) == "sqlite:///./tasks.db"
+        # Verify engine URL matches settings
+        engine_url = str(database.engine.url)
         
-        # Verify it's a SQLite engine
-        assert database.engine.dialect.name == 'sqlite'
-        
-        # The engine should be properly configured for SQLite
-        # (check_same_thread is a connection-time parameter, not inspectable from engine)
+        if "postgresql" in settings.DATABASE_URL:
+            # Verify it's a PostgreSQL engine
+            assert database.engine.dialect.name == 'postgresql'
+            assert settings.DB_NAME in engine_url
+        elif "sqlite" in settings.DATABASE_URL:
+            # Verify it's a SQLite engine
+            assert database.engine.dialect.name == 'sqlite'
+            assert "tasks.db" in engine_url

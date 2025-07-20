@@ -18,7 +18,15 @@ from app.core.config import settings
 from app.db.database import Base
 
 # Import all models to ensure they're registered with Base.metadata
-from app.db.models import User, Task, TaskStatus, TaskPriority, Category, Tag
+from app.db.models import (
+    User, Task, TaskStatus, TaskPriority, Category, Tag,
+    TaskDependency, Project, ProjectRole, 
+    ProjectMember, ProjectInvitation, TaskSharePermission, TaskShare,
+    Comment, CommentMention, FileAttachment, RecurrencePattern,
+    SavedSearch, TimeLog, WebhookSubscription,
+    WebhookDelivery, CalendarIntegration, TaskCalendarSync,
+    NotificationPreference, Notification, TaskReminder
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

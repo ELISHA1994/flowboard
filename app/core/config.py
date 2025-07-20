@@ -21,9 +21,16 @@ class Settings:
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
     # Database
+    # Build PostgreSQL URL from individual components if available
+    DB_HOST: str = os.getenv("DB_HOST", "127.0.0.1")
+    DB_PORT: str = os.getenv("DB_PORT", "5432")
+    DB_NAME: str = os.getenv("DB_NAME", "taskmanager")
+    DB_USER: str = os.getenv("DB_USER", "taskmanageruser")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "taskmanagerpass")
+    
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "sqlite:///./tasks.db"  # Default to SQLite for development
+        f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     )
     
     # Database pool settings (for production databases)
@@ -41,9 +48,10 @@ class Settings:
     
     # Testing
     TESTING: bool = os.getenv("TESTING", "False").lower() == "true"
+    TEST_DB_NAME: str = os.getenv("TEST_DB_NAME", "taskmanager_test")
     TEST_DATABASE_URL: str = os.getenv(
         "TEST_DATABASE_URL",
-        "sqlite:///./test_tasks.db"
+        f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{TEST_DB_NAME}"
     )
     
     # Logging
