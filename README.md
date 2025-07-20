@@ -3,8 +3,9 @@
 A modern task management system built as a monorepo containing a FastAPI backend with clean architecture principles, and prepared for a Next.js frontend. Features JWT authentication, PostgreSQL database, Redis caching, Celery background tasks, and comprehensive task management capabilities.
 
 > **Note for Existing Users**: This repository has been converted to a monorepo structure. The backend code is now located in `apps/backend/`. All existing functionality remains the same, but the development workflow has been improved with Turborepo and pnpm workspaces.
-> 
+>
 > **Migration Guide**: If you have an existing clone:
+>
 > 1. Pull the latest changes: `git pull`
 > 2. Install pnpm: `npm install -g pnpm`
 > 3. Install dependencies: `pnpm install`
@@ -111,11 +112,17 @@ task-management-monorepo/
 │   │   ├── requirements.txt # Python dependencies
 │   │   ├── Dockerfile       # Production Docker image
 │   │   └── package.json     # NPM scripts for Turborepo
-│   └── web/                 # Next.js frontend (future)
+│   └── web/                 # Next.js frontend application
+│       ├── app/             # Next.js App Router pages
+│       ├── components/      # React components
+│       │   ├── ui/          # shadcn/ui components
+│       │   └── layouts/     # Layout components
+│       ├── lib/             # Utilities and helpers
+│       └── public/          # Static assets
 ├── packages/
-│   ├── types/               # Shared TypeScript types
-│   ├── ui/                  # Shared UI components
-│   └── config/              # Shared configurations
+│   ├── types/               # Shared TypeScript types (future)
+│   ├── ui/                  # Shared UI components (future)
+│   └── config/              # Shared configurations (future)
 ├── docker-compose.yml       # Local development environment
 ├── turbo.json              # Turborepo configuration
 ├── pnpm-workspace.yaml     # pnpm workspace configuration
@@ -125,6 +132,7 @@ task-management-monorepo/
 ## 🛠️ Technology Stack
 
 ### Backend (FastAPI)
+
 - **Framework**: FastAPI with Python 3.11+
 - **Database**: PostgreSQL with SQLAlchemy ORM
 - **Cache**: Redis for caching and Celery broker
@@ -132,7 +140,19 @@ task-management-monorepo/
 - **Background Tasks**: Celery with scheduled tasks
 - **API Documentation**: Auto-generated OpenAPI/Swagger
 
+### Frontend (Next.js)
+
+- **Framework**: Next.js 15.4+ with App Router
+- **Language**: TypeScript for type safety
+- **Styling**: Tailwind CSS v4 with CSS-first approach
+- **UI Components**: shadcn/ui + Radix UI primitives
+- **State Management**: Zustand (global), TanStack Query (server state)
+- **Forms**: React Hook Form with Zod validation
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+
 ### Infrastructure
+
 - **Monorepo Tool**: Turborepo for build optimization
 - **Package Manager**: pnpm for efficient dependency management
 - **Containerization**: Docker & Docker Compose
@@ -242,6 +262,7 @@ make format            # Format Python code
 ```
 
 **Alternative**: You can also run backend commands from the root using pnpm filters:
+
 ```bash
 # From monorepo root - no need to cd into backend
 pnpm --filter @taskman/backend test
@@ -412,11 +433,13 @@ pnpm --filter @taskman/backend generate:schema
 ### Common Development Workflows
 
 #### Starting Fresh
+
 ```bash
 ./setup.sh  # Installs everything and starts services
 ```
 
 #### Daily Development
+
 ```bash
 pnpm docker:up    # Start services
 pnpm dev:backend  # Start backend with hot reload
@@ -424,12 +447,14 @@ pnpm docker:logs  # Monitor logs in another terminal
 ```
 
 #### Running Tests
+
 ```bash
 pnpm test:backend  # Quick test run
 cd apps/backend && make coverage  # Detailed coverage report
 ```
 
 #### Database Changes
+
 ```bash
 # Create a new migration
 cd apps/backend
@@ -452,35 +477,39 @@ docker-compose exec backend alembic upgrade head
 ## Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone <repository-url>
    cd turing_interview
    ```
 
 2. **Create and activate virtual environment:**
+
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
 3. **Install dependencies:**
+
    ```bash
    # Install application dependencies
    pip install -r requirements.txt
-   
+
    # Install test dependencies
    pip install -r requirements-test.txt
    ```
-   
+
    Or install manually:
+
    ```bash
    # Core dependencies
    pip install fastapi uvicorn sqlalchemy psycopg2-binary alembic
-   pip install python-jose[cryptography] bcrypt python-multipart 
+   pip install python-jose[cryptography] bcrypt python-multipart
    pip install email-validator python-dotenv pydantic[email]
    pip install redis celery[redis] flower
    pip install aiofiles pandas openpyxl
-   
+
    # Test dependencies
    pip install pytest pytest-asyncio pytest-cov httpx factory-boy faker
    pip install pytest-mock freezegun
@@ -496,10 +525,11 @@ docker-compose exec backend alembic upgrade head
    - Windows: Download from [postgresql.org](https://www.postgresql.org/download/)
 
 2. **Create database and user:**
+
    ```bash
    # Access PostgreSQL prompt
    sudo -u postgres psql
-   
+
    # Create user and databases
    CREATE USER taskmanageruser WITH PASSWORD 'taskmanagerpass';
    CREATE DATABASE taskmanager OWNER taskmanageruser;
@@ -508,6 +538,7 @@ docker-compose exec backend alembic upgrade head
    ```
 
 3. **Run setup script:**
+
    ```bash
    python scripts/setup_postgres.py
    ```
@@ -525,10 +556,11 @@ docker-compose exec backend alembic upgrade head
    - Windows: Download from [redis.io](https://redis.io/download)
 
 2. **Start Redis server:**
+
    ```bash
    # macOS/Linux
    redis-server
-   
+
    # Or as a service
    sudo systemctl start redis
    ```
@@ -543,47 +575,51 @@ docker-compose exec backend alembic upgrade head
 Celery is used for processing background tasks like sending notifications, processing recurring tasks, and generating analytics reports.
 
 1. **Test Celery Configuration:**
+
    ```bash
    python scripts/test_celery.py
    ```
 
 2. **Start Celery Workers:**
-   
+
    **Option 1 - Start all infrastructure (recommended):**
+
    ```bash
    # Start workers, beat scheduler, and optional monitoring
    ./scripts/celery/start_all.sh
-   
+
    # With custom settings
    ./scripts/celery/start_all.sh --workers 4 --concurrency 8 --monitor
-   
+
    # Check status
    ./scripts/celery/start_all.sh --status
-   
+
    # Stop all
    ./scripts/celery/start_all.sh --stop
    ```
-   
+
    **Option 2 - Start components individually:**
+
    ```bash
    # Start a worker
    ./scripts/celery/start_worker.sh
-   
+
    # Start beat scheduler (for periodic tasks)
    ./scripts/celery/start_beat.sh
-   
+
    # Monitor tasks
    ./scripts/celery/monitor.sh watch
    ```
 
 3. **Celery Commands:**
+
    ```bash
    # Start worker with custom options
    ./scripts/celery/start_worker.sh -n worker1 -c 4 -l info -q default,notifications
-   
+
    # Start beat scheduler with custom log level
    ./scripts/celery/start_beat.sh -l debug
-   
+
    # Monitor commands
    ./scripts/celery/monitor.sh status      # Show worker status
    ./scripts/celery/monitor.sh inspect     # Inspect workers and queues
@@ -611,19 +647,20 @@ Celery is used for processing background tasks like sending notifications, proce
 
 1. **Environment Variables:**
    Create a `.env` file in the project root:
+
    ```env
    # JWT Configuration
    SECRET_KEY=your-secret-key-here
    ALGORITHM=HS256
    ACCESS_TOKEN_EXPIRE_MINUTES=30
-   
+
    # Database Configuration
    DB_HOST=127.0.0.1
    DB_NAME=taskmanager
    DB_USER=taskmanageruser
    DB_PASSWORD=taskmanagerpass
    DB_PORT=5432
-   
+
    # Redis Configuration (Required for caching and background jobs)
    REDIS_HOST=localhost
    REDIS_PORT=6379
@@ -631,7 +668,7 @@ Celery is used for processing background tasks like sending notifications, proce
    REDIS_PASSWORD=
    REDIS_DEFAULT_TTL=300
    REDIS_MAX_CONNECTIONS=10
-   
+
    # Celery Configuration
    CELERY_BROKER_URL=  # Defaults to Redis URL
    CELERY_RESULT_BACKEND=  # Defaults to Redis URL
@@ -644,13 +681,13 @@ Celery is used for processing background tasks like sending notifications, proce
    CELERY_WORKER_MAX_TASKS_PER_CHILD=1000
    CELERY_TASK_ALWAYS_EAGER=False  # Set to True for testing without worker
    CELERY_RESULT_EXPIRES=3600
-   
+
    # Background Task Intervals (in seconds)
    RECURRING_TASK_CHECK_INTERVAL=300  # 5 minutes
    REMINDER_CHECK_INTERVAL=900  # 15 minutes
    NOTIFICATION_CLEANUP_INTERVAL=3600  # 1 hour
    ANALYTICS_CACHE_INTERVAL=1800  # 30 minutes
-   
+
    # File Upload Configuration
    UPLOAD_DIR=uploads
    MAX_FILE_SIZE=10485760  # 10MB in bytes
@@ -658,6 +695,7 @@ Celery is used for processing background tasks like sending notifications, proce
    ```
 
    To generate a secure secret key:
+
    ```bash
    openssl rand -hex 32
    ```
@@ -665,11 +703,13 @@ Celery is used for processing background tasks like sending notifications, proce
 ## Running the Application
 
 1. **Start the server:**
+
    ```bash
    uvicorn app.main:app --reload
    ```
 
    Or specify a different port:
+
    ```bash
    uvicorn app.main:app --reload --port 8001
    ```
@@ -699,6 +739,7 @@ pytest --cov=app --cov-report=term
 The project includes a comprehensive test suite with unit, integration, and end-to-end tests.
 
 1. **Run all tests with coverage:**
+
    ```bash
    pytest
    # or
@@ -706,6 +747,7 @@ The project includes a comprehensive test suite with unit, integration, and end-
    ```
 
 2. **Run specific test categories:**
+
    ```bash
    # Unit tests only (mocked dependencies)
    pytest -m unit
@@ -713,14 +755,14 @@ The project includes a comprehensive test suite with unit, integration, and end-
    python run_tests.py unit
    # or
    make test-unit
-   
+
    # Integration tests only (with database)
    pytest -m integration
    # or
    python run_tests.py integration
    # or
    make test-integration
-   
+
    # End-to-end tests only (complete workflows)
    pytest -m e2e
    # or
@@ -730,18 +772,20 @@ The project includes a comprehensive test suite with unit, integration, and end-
    ```
 
 3. **Run specific test files:**
+
    ```bash
    # Run a specific test file
    pytest tests/unit/services/test_task_service.py
-   
+
    # Run a specific test class
    pytest tests/unit/models/test_task_models.py::TestTaskCreate
-   
+
    # Run a specific test method
    pytest tests/unit/models/test_task_models.py::TestTaskCreate::test_valid_task_create
    ```
 
 4. **Generate coverage reports:**
+
    ```bash
    # Generate HTML coverage report
    pytest --cov=app --cov-report=html
@@ -749,7 +793,7 @@ The project includes a comprehensive test suite with unit, integration, and end-
    python run_tests.py coverage
    # or
    make coverage
-   
+
    # View the report
    open htmlcov/index.html  # On macOS
    # or
@@ -759,19 +803,20 @@ The project includes a comprehensive test suite with unit, integration, and end-
    ```
 
 5. **Run tests with different options:**
+
    ```bash
    # Verbose output
    pytest -v
-   
+
    # Show print statements
    pytest -s
-   
+
    # Run failed tests first
    pytest --failed-first
-   
+
    # Run only last failed tests
    pytest --last-failed
-   
+
    # Run tests in parallel (requires pytest-xdist)
    pytest -n auto
    ```
@@ -782,12 +827,10 @@ The project includes a comprehensive test suite with unit, integration, and end-
   - Model validation tests
   - Service logic tests
   - Utility function tests
-  
 - **Integration Tests** (`tests/integration/`): Test API endpoints with a real database
   - Authentication endpoints
   - Task CRUD operations
   - User management
-  
 - **End-to-End Tests** (`tests/e2e/`): Test complete user workflows
   - User registration → login → task management
   - Multi-user scenarios
@@ -796,6 +839,7 @@ The project includes a comprehensive test suite with unit, integration, and end-
 ### Manual API Testing
 
 1. **Test with cURL:**
+
    ```bash
    # Register a new user
    curl -X POST http://localhost:8000/register \
@@ -818,14 +862,14 @@ The project includes a comprehensive test suite with unit, integration, and end-
 
 When running with Docker (`pnpm docker:up` or `./setup.sh`):
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| **FastAPI Backend** | http://localhost:8000 | Main API server |
-| **Swagger UI** | http://localhost:8000/docs | Interactive API documentation |
-| **ReDoc** | http://localhost:8000/redoc | Alternative API documentation |
-| **Flower** | http://localhost:5555 | Celery task monitoring UI |
-| **PostgreSQL** | localhost:5432 | Database (credentials in docker-compose.yml) |
-| **Redis** | localhost:6379 | Cache and message broker |
+| Service             | URL                         | Description                                  |
+| ------------------- | --------------------------- | -------------------------------------------- |
+| **FastAPI Backend** | http://localhost:8000       | Main API server                              |
+| **Swagger UI**      | http://localhost:8000/docs  | Interactive API documentation                |
+| **ReDoc**           | http://localhost:8000/redoc | Alternative API documentation                |
+| **Flower**          | http://localhost:5555       | Celery task monitoring UI                    |
+| **PostgreSQL**      | localhost:5432              | Database (credentials in docker-compose.yml) |
+| **Redis**           | localhost:6379              | Cache and message broker                     |
 
 ### Health Checks
 
@@ -844,6 +888,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 ## API Endpoints
 
 ### Authentication
+
 - `POST /register` - Register a new user
   - Body: `{"username": "string", "email": "string", "password": "string"}`
 - `POST /login` - Login and receive JWT token
@@ -851,10 +896,12 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
   - Returns: `{"access_token": "string", "token_type": "bearer"}`
 
 ### User Management
+
 - `GET /users/me` - Get current user profile (requires authentication)
   - Headers: `Authorization: Bearer <token>`
 
 ### Task Management (all require authentication)
+
 - `GET /tasks` - List user's tasks
   - Query params: `?status=todo|in_progress|done&priority=low|medium|high|urgent&assigned_to_id=string&project_id=string&skip=0&limit=10`
 - `POST /tasks` - Create a new task
@@ -868,12 +915,14 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `GET /tasks/project/{project_id}` - Get all tasks in a project
 
 ### Task Sharing
+
 - `POST /tasks/{task_id}/share` - Share a task with another user
   - Body: `{"task_id": "string", "shared_with_id": "string", "permission": "view|edit|comment"}`
 - `GET /tasks/shared/with-me` - Get tasks shared with you
 - `DELETE /tasks/{task_id}/share/{share_id}` - Remove a task share
 
 ### Advanced Search and Filtering
+
 - `POST /search/tasks` - Advanced task search with filters
   - Body: `{"text": "search term", "filters": [{"field": "status", "operator": "eq", "value": "todo"}], "sort_by": "created_at", "sort_order": "desc", "skip": 0, "limit": 20}`
   - Supported operators: eq, ne, gt, gte, lt, lte, contains, not_contains, in, not_in, is_null, is_not_null
@@ -889,6 +938,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `DELETE /search/saved/{search_id}` - Delete saved search
 
 ### Analytics and Reporting
+
 - `POST /analytics/tasks/{task_id}/time-log` - Log time to a task
   - Body: `{"hours": 2.5, "description": "Worked on implementation", "logged_at": "2024-01-20T10:00:00Z"}`
 - `GET /analytics/statistics` - Get task statistics
@@ -910,6 +960,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
   - Body: `{"format": "csv", "task_ids": ["id1", "id2"]}` (format: csv/excel)
 
 ### Categories and Tags
+
 - `GET /categories` - List user's categories
 - `POST /categories` - Create a new category
   - Body: `{"name": "string", "color": "#FF5733", "description": "string"}`
@@ -922,6 +973,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `DELETE /tags/{tag_id}` - Delete tag
 
 ### Comments and Mentions
+
 - `GET /tasks/{task_id}/comments` - Get task comments
   - Query params: `?include_replies=true`
 - `POST /tasks/{task_id}/comments` - Add comment to task
@@ -932,6 +984,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
   - Query params: `?skip=0&limit=20`
 
 ### File Attachments
+
 - `POST /tasks/{task_id}/files` - Upload file to task
   - Form data with file upload
 - `GET /tasks/{task_id}/files` - List task attachments
@@ -939,6 +992,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `DELETE /files/{file_id}` - Delete file attachment
 
 ### Projects
+
 - `GET /projects` - List user's projects
 - `POST /projects` - Create a new project
   - Body: `{"name": "string", "description": "string", "color": "#FF5733"}`
@@ -952,6 +1006,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `DELETE /projects/{project_id}/members/{user_id}` - Remove member
 
 ### Task Dependencies and Subtasks
+
 - `POST /tasks/{task_id}/dependencies` - Add task dependency
   - Body: `{"depends_on_id": "string"}`
 - `GET /tasks/{task_id}/dependencies` - Get task dependencies
@@ -961,6 +1016,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `GET /tasks/{task_id}/subtasks` - Get task's subtasks
 
 ### Recurring Tasks
+
 - `POST /tasks/{task_id}/recurrence` - Set task recurrence
   - Body: `{"pattern": "daily|weekly|monthly|yearly", "interval": 1, "days_of_week": [1,3,5], "day_of_month": 15, "end_date": "2024-12-31"}`
 - `PUT /tasks/{task_id}/recurrence` - Update recurrence
@@ -968,6 +1024,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `GET /tasks/{task_id}/recurrence/instances` - Get recurring instances
 
 ### Notifications and Reminders
+
 - `GET /notifications` - Get user notifications
   - Query params: `?unread_only=true&type=task_assigned&limit=50`
 - `PUT /notifications/{notification_id}/read` - Mark notification as read
@@ -982,6 +1039,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `DELETE /reminders/{reminder_id}` - Delete reminder
 
 ### Webhooks
+
 - `GET /webhooks` - List webhook subscriptions
 - `POST /webhooks` - Create webhook subscription
   - Body: `{"name": "string", "url": "https://example.com/hook", "events": ["task.created", "task.updated"], "secret": "string"}`
@@ -991,6 +1049,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `GET /webhooks/{webhook_id}/deliveries` - Get delivery history
 
 ### Calendar Integration
+
 - `GET /calendar/integrations` - List calendar integrations
 - `POST /calendar/integrations` - Add calendar integration
   - Body: `{"provider": "google|microsoft", "calendar_id": "string", "calendar_name": "string", "access_token": "string"}`
@@ -1001,11 +1060,13 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - `POST /calendar/oauth/callback` - Handle OAuth callback
 
 ### Health Check
+
 - `GET /health` - Application health status
 
 ## Features
 
 ### Core Features
+
 - **JWT Authentication**: Secure token-based authentication
 - **Task Management**: Full CRUD operations for tasks
 - **User Isolation**: Each user can only access their own tasks
@@ -1014,6 +1075,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - **API Documentation**: Auto-generated Swagger/OpenAPI documentation
 
 ### Enhanced Task Properties
+
 - **Priority Levels**: LOW, MEDIUM, HIGH, URGENT
 - **Date Management**: Start date, due date tracking
 - **Time Tracking**: Estimated hours and actual hours logged
@@ -1021,12 +1083,14 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - **Task Status**: TODO, IN_PROGRESS, DONE with completion timestamps
 
 ### Organization Features
+
 - **Categories**: Organize tasks into categories with colors
 - **Tags**: Flexible tagging system for tasks
 - **Subtasks**: Hierarchical task structures
 - **Task Dependencies**: Define task relationships and dependencies
 
 ### Collaboration Features
+
 - **Project Management**: Create projects with team members
 - **Role-Based Access**: OWNER, ADMIN, MEMBER, VIEWER roles
 - **Task Assignment**: Assign tasks to team members
@@ -1037,6 +1101,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - **File Attachments**: Upload and manage file attachments on tasks with size and type validation
 
 ### Advanced Search and Filtering
+
 - **Full-text Search**: Search in task titles and descriptions
 - **Advanced Filters**: Complex filtering with multiple operators (equals, contains, greater than, etc.)
 - **Multi-criteria Search**: Filter by status, priority, dates, categories, tags, assigned user
@@ -1048,6 +1113,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - **Pagination**: Built-in pagination for all list endpoints
 
 ### Analytics and Reporting
+
 - **Time Tracking**: Log hours worked on tasks with detailed time logs
 - **Task Statistics**: Get comprehensive statistics including completion rates and overdue tasks
 - **Productivity Trends**: Track productivity over weeks, months, or quarters
@@ -1059,6 +1125,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - **Project-specific Analytics**: Filter all metrics by specific projects
 
 ### Background Processing
+
 - **Asynchronous Task Processing**: Celery-based background job processing
 - **Scheduled Tasks**: Automatic processing of recurring tasks and reminders
 - **Email Notifications**: Background email sending with retry logic
@@ -1067,12 +1134,14 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - **Notification Cleanup**: Automatic cleanup of old notifications
 
 ### Integrations
+
 - **Calendar Sync**: Two-way sync with Google Calendar and Microsoft Outlook
 - **Webhook System**: Real-time event notifications to external systems
 - **Export/Import**: Data portability with CSV and Excel formats
 - **OAuth2 Support**: Secure authentication for external calendar services
 
 ### Performance and Reliability
+
 - **Redis Caching**: High-performance caching for frequently accessed data
 - **Connection Pooling**: Efficient database connection management
 - **Pagination**: All list endpoints support pagination
@@ -1115,11 +1184,13 @@ The application uses PostgreSQL with the following main tables:
 This project uses [Conventional Commits](https://www.conventionalcommits.org/) for consistent commit messages. All commits are validated by commitlint.
 
 #### Commit Format
+
 ```
 <type>(<scope>): <subject>
 ```
 
 #### Types
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -1132,6 +1203,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/) f
 - `chore`: Other changes
 
 #### Scopes
+
 - `root`: Root-level changes
 - `backend`: Backend application
 - `web`: Frontend application (future)
@@ -1139,6 +1211,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/) f
 - `deps`: Dependencies
 
 #### Examples
+
 ```bash
 feat(backend): add task priority filtering
 fix(backend): resolve JWT token expiration issue
@@ -1154,6 +1227,7 @@ The repository uses Git hooks to ensure code quality:
 - **commit-msg**: Validates commit message format
 
 To set a custom commit message template:
+
 ```bash
 git config --local commit.template .gitmessage
 ```
@@ -1171,6 +1245,7 @@ The project follows TDD practices. When adding new features:
 5. **Add integration tests**: Test the complete flow
 
 Example workflow:
+
 ```bash
 # 1. Write your test
 # Edit tests/unit/services/test_new_feature.py
@@ -1213,6 +1288,7 @@ The application follows a clean architecture pattern with clear separation betwe
 ### Webhook Events
 
 The following events are available for webhook subscriptions:
+
 - `task.created` - New task created
 - `task.updated` - Task updated
 - `task.deleted` - Task deleted
@@ -1245,6 +1321,7 @@ The project includes GitHub Actions workflow for automated testing:
 - Uploads coverage to Codecov (if configured)
 
 To run tests locally before pushing:
+
 ```bash
 # Run the same checks as CI
 make test
@@ -1254,6 +1331,7 @@ make lint  # If linting is configured
 ## 📋 Quick Reference
 
 ### Essential Commands
+
 ```bash
 # First time setup
 ./setup.sh
@@ -1261,6 +1339,8 @@ make lint  # If linting is configured
 # Daily development
 pnpm docker:up         # Start all services
 pnpm dev:backend       # Start backend with hot reload
+pnpm dev:web          # Start frontend dev server
+pnpm dev              # Start both backend and frontend
 pnpm test:backend      # Run tests
 pnpm docker:logs       # View logs
 
@@ -1269,16 +1349,22 @@ pnpm docker:down
 ```
 
 ### Service URLs
+
+- Frontend App: http://localhost:3000
 - API Docs: http://localhost:8000/docs
 - Celery UI: http://localhost:5555
 - Health Check: http://localhost:8000/health
 
 ### Project Locations
+
 - Backend Code: `apps/backend/`
 - API Endpoints: `apps/backend/app/api/`
 - Business Logic: `apps/backend/app/services/`
 - Database Models: `apps/backend/app/db/models.py`
 - Tests: `apps/backend/tests/`
+- Frontend Code: `apps/web/`
+- UI Components: `apps/web/components/`
+- Pages: `apps/web/app/`
 
 ## License
 
