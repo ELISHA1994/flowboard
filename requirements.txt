@@ -10,6 +10,16 @@ python-dotenv==1.0.0
 
 # Database
 alembic==1.11.2
+psycopg2-binary==2.9.9
+
+# Redis and Caching
+redis==5.0.1
+hiredis==2.2.3
+
+# Background Jobs
+celery==5.3.4
+celery[redis]==5.3.4
+kombu==5.3.4
 
 # Development tools (optional)
 httpx==0.24.1  # For TestClient

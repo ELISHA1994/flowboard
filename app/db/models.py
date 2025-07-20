@@ -336,6 +336,13 @@ class TaskSharePermission(str, enum.Enum):
     COMMENT = "comment"
 
 
+class WebhookDeliveryStatus(str, enum.Enum):
+    """Webhook delivery status enumeration"""
+    PENDING = "pending"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+
+
 class TaskShare(Base):
     """Task sharing model for sharing individual tasks with other users"""
     __tablename__ = "task_shares"
@@ -484,13 +491,15 @@ class WebhookDelivery(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     subscription_id = Column(String, ForeignKey("webhook_subscriptions.id", ondelete="CASCADE"), nullable=False)
     event_type = Column(String(50), nullable=False)
-    payload = Column(Text, nullable=False)  # JSON payload
-    status_code = Column(Integer, nullable=True)
-    response = Column(Text, nullable=True)
-    error = Column(Text, nullable=True)
-    delivered_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    payload = Column(Text, nullable=False)  # JSON payload as string
+    status = Column(SQLEnum(WebhookDeliveryStatus), default=WebhookDeliveryStatus.PENDING, nullable=False)
+    response_status_code = Column(Integer, nullable=True)
+    response_headers = Column(Text, nullable=True)  # JSON as string
+    response_body = Column(Text, nullable=True)
+    failure_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
     retry_count = Column(Integer, default=0, nullable=False)
-    next_retry_at = Column(DateTime(timezone=True), nullable=True)
     
     # Relationships
     subscription = relationship("WebhookSubscription", back_populates="deliveries")

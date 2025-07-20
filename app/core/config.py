@@ -95,6 +95,25 @@ class Settings:
     CACHE_PREFIX_ANALYTICS: str = "analytics:"
     CACHE_PREFIX_SESSION: str = "session:"
     
+    # Celery Configuration
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "")  # Will use redis_url if not set
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "")  # Will use redis_url if not set
+    CELERY_TASK_SERIALIZER: str = os.getenv("CELERY_TASK_SERIALIZER", "json")
+    CELERY_RESULT_SERIALIZER: str = os.getenv("CELERY_RESULT_SERIALIZER", "json")
+    CELERY_ACCEPT_CONTENT: list = os.getenv("CELERY_ACCEPT_CONTENT", "json").split(",")
+    CELERY_TIMEZONE: str = os.getenv("CELERY_TIMEZONE", "UTC")
+    CELERY_ENABLE_UTC: bool = os.getenv("CELERY_ENABLE_UTC", "True").lower() == "true"
+    CELERY_WORKER_PREFETCH_MULTIPLIER: int = int(os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "4"))
+    CELERY_WORKER_MAX_TASKS_PER_CHILD: int = int(os.getenv("CELERY_WORKER_MAX_TASKS_PER_CHILD", "1000"))
+    CELERY_TASK_ALWAYS_EAGER: bool = os.getenv("CELERY_TASK_ALWAYS_EAGER", "False").lower() == "true"
+    CELERY_RESULT_EXPIRES: int = int(os.getenv("CELERY_RESULT_EXPIRES", "3600"))  # 1 hour
+    
+    # Background Task Settings
+    RECURRING_TASK_CHECK_INTERVAL: int = int(os.getenv("RECURRING_TASK_CHECK_INTERVAL", "300"))  # 5 minutes
+    REMINDER_CHECK_INTERVAL: int = int(os.getenv("REMINDER_CHECK_INTERVAL", "900"))  # 15 minutes
+    NOTIFICATION_CLEANUP_INTERVAL: int = int(os.getenv("NOTIFICATION_CLEANUP_INTERVAL", "3600"))  # 1 hour
+    ANALYTICS_CACHE_INTERVAL: int = int(os.getenv("ANALYTICS_CACHE_INTERVAL", "1800"))  # 30 minutes
+    
     @property
     def database_settings(self) -> Dict[str, Any]:
         """Get database connection settings based on DATABASE_URL"""
@@ -172,6 +191,14 @@ class Settings:
             config["db"] = self.REDIS_DB + 1
         
         return config
+    
+    def get_celery_broker_url(self) -> str:
+        """Get Celery broker URL, defaulting to Redis URL."""
+        return self.CELERY_BROKER_URL or self.redis_url
+    
+    def get_celery_result_backend(self) -> str:
+        """Get Celery result backend URL, defaulting to Redis URL."""
+        return self.CELERY_RESULT_BACKEND or self.redis_url
 
 
 @lru_cache()

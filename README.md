@@ -108,6 +108,96 @@ tests/                  # Comprehensive test suite
    alembic upgrade head
    ```
 
+### Redis Setup (Required for Caching and Background Jobs)
+
+1. **Install Redis:**
+   - macOS: `brew install redis`
+   - Ubuntu/Debian: `sudo apt-get install redis-server`
+   - Windows: Download from [redis.io](https://redis.io/download)
+
+2. **Start Redis server:**
+   ```bash
+   # macOS/Linux
+   redis-server
+   
+   # Or as a service
+   sudo systemctl start redis
+   ```
+
+3. **Test Redis connection:**
+   ```bash
+   python scripts/test_redis_cache.py
+   ```
+
+### Celery Setup (Background Job Processing)
+
+Celery is used for processing background tasks like sending notifications, processing recurring tasks, and generating analytics reports.
+
+1. **Test Celery Configuration:**
+   ```bash
+   python scripts/test_celery.py
+   ```
+
+2. **Start Celery Workers:**
+   
+   **Option 1 - Start all infrastructure (recommended):**
+   ```bash
+   # Start workers, beat scheduler, and optional monitoring
+   ./scripts/celery/start_all.sh
+   
+   # With custom settings
+   ./scripts/celery/start_all.sh --workers 4 --concurrency 8 --monitor
+   
+   # Check status
+   ./scripts/celery/start_all.sh --status
+   
+   # Stop all
+   ./scripts/celery/start_all.sh --stop
+   ```
+   
+   **Option 2 - Start components individually:**
+   ```bash
+   # Start a worker
+   ./scripts/celery/start_worker.sh
+   
+   # Start beat scheduler (for periodic tasks)
+   ./scripts/celery/start_beat.sh
+   
+   # Monitor tasks
+   ./scripts/celery/monitor.sh watch
+   ```
+
+3. **Celery Commands:**
+   ```bash
+   # Start worker with custom options
+   ./scripts/celery/start_worker.sh -n worker1 -c 4 -l info -q default,notifications
+   
+   # Start beat scheduler with custom log level
+   ./scripts/celery/start_beat.sh -l debug
+   
+   # Monitor commands
+   ./scripts/celery/monitor.sh status      # Show worker status
+   ./scripts/celery/monitor.sh inspect     # Inspect workers and queues
+   ./scripts/celery/monitor.sh stats       # Show statistics
+   ./scripts/celery/monitor.sh active      # Show active tasks
+   ./scripts/celery/monitor.sh watch       # Continuous monitoring
+   ```
+
+4. **Available Task Queues:**
+   - `default` - General purpose tasks
+   - `notifications` - Email and in-app notifications
+   - `recurring` - Processing recurring tasks
+   - `webhooks` - Webhook deliveries
+   - `analytics` - Analytics computation and reports
+   - `reminders` - Task reminders and summaries
+
+5. **Periodic Tasks:**
+   The following tasks run automatically when beat scheduler is active:
+   - Process recurring tasks (every 5 minutes)
+   - Send reminder notifications (every 15 minutes)
+   - Cleanup expired notifications (every hour)
+   - Precompute analytics cache (every 30 minutes)
+
 ## Configuration
 
 1. **Environment Variables:**
@@ -124,6 +214,33 @@ tests/                  # Comprehensive test suite
    DB_USER=taskmanageruser
    DB_PASSWORD=taskmanagerpass
    DB_PORT=5432
+   
+   # Redis Configuration (Required for caching and background jobs)
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   REDIS_DB=0
+   REDIS_PASSWORD=
+   REDIS_DEFAULT_TTL=300
+   REDIS_MAX_CONNECTIONS=10
+   
+   # Celery Configuration
+   CELERY_BROKER_URL=  # Defaults to Redis URL
+   CELERY_RESULT_BACKEND=  # Defaults to Redis URL
+   CELERY_TASK_SERIALIZER=json
+   CELERY_RESULT_SERIALIZER=json
+   CELERY_ACCEPT_CONTENT=json
+   CELERY_TIMEZONE=UTC
+   CELERY_ENABLE_UTC=True
+   CELERY_WORKER_PREFETCH_MULTIPLIER=4
+   CELERY_WORKER_MAX_TASKS_PER_CHILD=1000
+   CELERY_TASK_ALWAYS_EAGER=False  # Set to True for testing without worker
+   CELERY_RESULT_EXPIRES=3600
+   
+   # Background Task Intervals (in seconds)
+   RECURRING_TASK_CHECK_INTERVAL=300  # 5 minutes
+   REMINDER_CHECK_INTERVAL=900  # 15 minutes
+   NOTIFICATION_CLEANUP_INTERVAL=3600  # 1 hour
+   ANALYTICS_CACHE_INTERVAL=1800  # 30 minutes
    
    # File Upload Configuration
    UPLOAD_DIR=uploads
@@ -502,185 +619,3 @@ make lint  # If linting is configured
 ## License
 
 This project is open source and available under the MIT License.
-
-
-
-Advanced Task Management System Expansion Plan
-
-     Phase 1: Core Task Enhancements (Week 1-2)
-
-     1. Enhanced Task Properties
-       - Add priority levels (LOW, MEDIUM, HIGH, URGENT)
-       - Add due_date and start_date fields
-       - Add estimated_hours and actual_hours for time tracking
-       - Add completed_at timestamp
-       - Add task position for manual ordering
-     2. Categories and Tags
-       - Create Category model (many-to-many with tasks)
-       - Create Tag model with color support
-       - Add endpoints for managing categories/tags
-       - Enable filtering by categories/tags
-     3. Subtasks and Dependencies
-       - Add parent_task_id for subtask relationships
-       - Create TaskDependency model
-       - Add validation to prevent circular dependencies
-       - Update task completion logic for dependencies
-
-     Phase 2: Collaboration Features (Week 3-4)
-
-     1. Team/Project Management
-       - Create Project model with members
-       - Add role-based permissions (OWNER, ADMIN, MEMBER, VIEWER)
-       - Create project invitation system
-       - Update task model to support project assignment
-     2. Task Assignment and Sharing
-       - Add assigned_to field for task delegation
-       - Create TaskShare model for sharing individual tasks
-       - Add notification system for assignments
-       - Implement activity feed for task changes
-     3. Comments and Attachments
-       - Create Comment model with @mention support
-       - Create Attachment model with file metadata
-       - Integrate with cloud storage (S3/MinIO)
-       - Add file upload endpoints with validation
-
-     Phase 3: Advanced Features (Week 5-6)
-
-     1. Recurring Tasks
-       - Create RecurrenceRule model
-       - Add task template system
-       - Implement background job for creating recurring instances
-       - Add endpoints for managing recurring tasks
-     2. Notifications and Reminders
-       - Create Notification model and preferences
-       - Implement email notification service
-       - Add in-app notification system
-       - Create reminder scheduling with Celery
-     3. Advanced Search and Filtering
-       - Implement full-text search with PostgreSQL
-       - Add advanced filter combinations
-       - Create saved filter/view system
-       - Add bulk operations endpoints
-
-     Phase 4: Analytics and Integration (Week 7-8)
-
-     1. Analytics Dashboard
-       - Create analytics service for metrics
-       - Add productivity statistics endpoints
-       - Implement time tracking reports
-       - Create export functionality (CSV/Excel)
-     2. External Integrations
-       - Add webhook system for events
-       - Create calendar sync endpoints
-       - Implement OAuth for Google/Microsoft
-       - Add API versioning
-     3. Performance Optimization
-       - Migrate to PostgreSQL
-       - Implement Redis caching
-       - Add database indexing strategy
-       - Optimize query performance
-
-     Technical Implementation Details:
-
-     New Models to Create:
-     - Priority, Category, Tag, Project, ProjectMember
-     - TaskDependency, TaskShare, Comment, Attachment
-     - RecurrenceRule, TaskTemplate, Notification
-     - UserPreference, WebhookSubscription, AuditLog
-
-     New Services:
-     - ProjectService, NotificationService, FileService
-     - AnalyticsService, RecurrenceService, SearchService
-     - IntegrationService, ExportService
-
-     Infrastructure Changes:
-     - PostgreSQL migration for better performance
-     - Redis for caching and session management
-     - Celery + Redis for background jobs
-     - MinIO/S3 for file storage
-     - Email service (SendGrid/AWS SES)
-
-     API Enhancements:
-     - Versioned API (v1, v2)
-     - GraphQL endpoint option
-     - WebSocket support for real-time updates
-     - Batch operation endpoints
-     - Enhanced error handling and validation
-
-     Security Improvements:
-     - Two-factor authentication
-     - API rate limiting
-     - Role-based access control
-     - Audit logging
-     - Data encryption for sensitive fields
-
-     This plan transforms the basic task manager into a full-featured, enterprise-ready task management system while maintaining the clean architecture and high test coverage standards.
-
-
-Update Todos
-⎿  ☒ Create enhanced task properties (priority, dates, time tracking)
-    ☒ Implement categories and tags system
-    ☒ Set up production-grade migration system with Alembic
-    ☒ Add subtasks and task dependencies
-    ☒ Write unit tests for TaskDependencyService
-    ☒ Write integration tests for task dependency API endpoints
-    ☒ Fix failing tests from full test suite run
-    ☒ Create project/team management models
-    ☒ Write unit tests for ProjectService
-    ☒ Write integration tests for project API endpoints
-    ☒ Update task endpoints to support project context
-    ☒ Implement task assignment and sharing
-    ☒ Add comments and @mentions system
-    ☒ Fix calendar integration test endpoints (remove /api prefix)
-    ☒ Fix remaining test failures after endpoint fix
-    ☒ Fix all failing unit tests
-    ☒ Fix failing category and tag tests
-    ☒ Create file attachment functionality
-    ☒ Implement recurring tasks system
-    ☒ Create advanced search and filtering
-    ☒ Build analytics and reporting features
-    ☒ Add external integrations (webhooks, calendar)
-    ☒ Add notification and reminder system
-    ☐ Migrate to PostgreSQL
-    ☐ Set up Redis caching
-    ☐ Configure Celery for background jobs
-
-
-⏺ 🎉 Advanced Task Management System - Implementation Complete!
-
-I've successfully implemented all the core features from the expansion plan. Here's
-what has been accomplished:
-
-✅ Completed Features:
-
-1. Enhanced Task Properties - Priority levels, dates, time tracking
-2. Categories & Tags System - Full organization capabilities
-3. Subtasks & Dependencies - Complex task relationships
-4. Project/Team Management - Multi-user collaboration with roles
-5. Task Assignment & Sharing - User assignments and temporary sharing
-6. Comments & @mentions - Rich commenting system
-7. File Attachments - File upload/download for tasks
-8. Recurring Tasks - Daily/weekly/monthly/yearly patterns
-9. Advanced Search & Filtering - Complex queries with operators
-10. Analytics & Reporting - Productivity metrics and insights
-11. External Integrations:
-    - Webhooks - Event notifications with HMAC security
-    - Calendar Sync - Google, Microsoft, CalDAV support
-12. Notifications & Reminders - Email/in-app with preferences
-
-📊 Test Results:
-
-✅ 439 tests passed
-✅ 1 skipped
-✅ 0 failures
-
-🔧 Infrastructure Tasks (Pending - Low Priority):
-
-- Migrate to PostgreSQL
-- Set up Redis caching
-- Configure Celery for background jobs
-
-The system is now a fully-featured, production-ready task management application! All
-core functionality has been implemented and thoroughly tested.
-
-

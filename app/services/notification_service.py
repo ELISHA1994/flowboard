@@ -363,21 +363,14 @@ class NotificationService:
     ):
         """Create notification for task assignment."""
         if task.assigned_to_id and task.assigned_to_id != assigned_by.id:
-            # Check if user wants this notification
-            if NotificationService.should_send_notification(
-                db,
+            # Queue the notification as a background task
+            from app.tasks.notifications import send_task_assignment_notification
+            send_task_assignment_notification.delay(
+                task.id,
                 task.assigned_to_id,
-                NotificationType.TASK_ASSIGNED,
-                NotificationChannel.IN_APP
-            ):
-                NotificationService.create_notification(
-                    db,
-                    task.assigned_to_id,
-                    NotificationType.TASK_ASSIGNED,
-                    f"Task assigned: {task.title}",
-                    f"{assigned_by.username} assigned you a task: {task.title}",
-                    {"task_id": task.id, "assigned_by": assigned_by.username}
-                )
+                assigned_by.id
+            )
+            logger.info(f"Queued assignment notification for task {task.id}")
     
     @staticmethod
     def notify_comment_mention(
@@ -387,25 +380,13 @@ class NotificationService:
     ):
         """Create notification for comment mention."""
         if mentioned_user_id != comment.user_id:
-            # Check if user wants this notification
-            if NotificationService.should_send_notification(
-                db,
-                mentioned_user_id,
-                NotificationType.COMMENT_MENTION,
-                NotificationChannel.IN_APP
-            ):
-                NotificationService.create_notification(
-                    db,
-                    mentioned_user_id,
-                    NotificationType.COMMENT_MENTION,
-                    f"You were mentioned in a comment",
-                    f"{comment.user.username} mentioned you in a comment on task: {comment.task.title}",
-                    {
-                        "task_id": comment.task_id,
-                        "comment_id": comment.id,
-                        "mentioned_by": comment.user.username
-                    }
-                )
+            # Queue the notification as a background task
+            from app.tasks.notifications import send_comment_mention_notification
+            send_comment_mention_notification.delay(
+                comment.id,
+                mentioned_user_id
+            )
+            logger.info(f"Queued mention notification for comment {comment.id}")
     
     @staticmethod
     def notify_task_due_soon(
@@ -453,34 +434,12 @@ class NotificationService:
     
     @staticmethod
     def process_pending_reminders(db: Session):
-        """Process and send pending reminders."""
-        reminders = NotificationService.get_pending_reminders(db)
+        """Process and send pending reminders - Now handled by Celery periodic task."""
+        # This method is replaced by the Celery periodic task
+        # app.tasks.reminders.send_reminder_notifications
+        logger.warning("process_pending_reminders called directly - this should be handled by Celery periodic task")
         
-        for reminder in reminders:
-            try:
-                # Create notification for the reminder
-                message = reminder.message
-                if not message:
-                    if reminder.reminder_type == "due_date":
-                        hours = reminder.offset_minutes // 60 if reminder.offset_minutes else 0
-                        time_str = f"{hours} hours" if hours > 1 else "1 hour"
-                        message = f"Task '{reminder.task.title}' is due in {time_str}"
-                    else:
-                        message = f"Reminder for task: {reminder.task.title}"
-                
-                NotificationService.create_notification(
-                    db,
-                    reminder.user_id,
-                    NotificationType.REMINDER_DUE_DATE if reminder.reminder_type == "due_date" else NotificationType.REMINDER_CUSTOM,
-                    f"Task reminder: {reminder.task.title}",
-                    message,
-                    {"task_id": reminder.task_id, "reminder_id": reminder.id}
-                )
-                
-                # Mark reminder as sent
-                NotificationService.mark_reminder_sent(db, reminder.id)
-                
-                logger.info(f"Processed reminder {reminder.id}")
-            except Exception as e:
-                logger.error(f"Error processing reminder {reminder.id}: {e}")
-                continue
+        # For backward compatibility, we can queue the Celery task
+        from app.core.celery_app import celery_app
+        celery_app.send_task('app.tasks.reminders.send_reminder_notifications')
+        logger.info("Queued reminder processing task")

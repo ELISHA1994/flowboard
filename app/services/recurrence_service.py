@@ -2,12 +2,13 @@
 Service layer for handling recurring task operations.
 """
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.db.models import Task, RecurrencePattern, TaskStatus
 from app.models.task import RecurrenceConfig
+from app.core.logging import logger
 
 
 class RecurrenceService:
@@ -308,3 +309,93 @@ class RecurrenceService:
                 tasks_to_process.append(task)
                 
         return tasks_to_process
+    
+    @staticmethod
+    def process_recurring_tasks(db: Session):
+        """Process recurring tasks - Now handled by Celery periodic task."""
+        # This method is replaced by the Celery periodic task
+        # app.tasks.recurring.process_recurring_tasks
+        logger.warning("process_recurring_tasks called directly - this should be handled by Celery periodic task")
+        
+        # For backward compatibility, we can queue the Celery task
+        from app.core.celery_app import celery_app
+        celery_app.send_task('app.tasks.recurring.process_recurring_tasks')
+        logger.info("Queued recurring task processing")
+    
+    @staticmethod
+    def should_create_next_instance(db: Session, task_id: str) -> bool:
+        """
+        Check if a new instance should be created for a recurring task.
+        Enhanced version that checks for existing instances.
+        """
+        task = db.query(Task).filter(Task.id == task_id).first()
+        if not task:
+            return False
+            
+        if not task.is_recurring or not task.recurrence_pattern:
+            return False
+            
+        # Check if recurrence has ended
+        if task.recurrence_end_date and datetime.now(timezone.utc) > task.recurrence_end_date:
+            return False
+            
+        # Check occurrence count
+        if task.recurrence_count:
+            # Count existing instances
+            instance_count = db.query(Task).filter(
+                Task.recurrence_parent_id == task_id
+            ).count()
+            if instance_count >= task.recurrence_count:
+                return False
+        
+        # Check if we already have a pending instance for the next occurrence
+        # Get the last created instance
+        last_instance = db.query(Task).filter(
+            Task.recurrence_parent_id == task_id
+        ).order_by(Task.created_at.desc()).first()
+        
+        if last_instance and last_instance.status != TaskStatus.DONE:
+            # We already have a pending instance
+            return False
+            
+        return True
+    
+    @staticmethod
+    def create_next_instance(db: Session, task_id: str) -> Optional[Task]:
+        """
+        Create the next instance of a recurring task if needed.
+        """
+        task = db.query(Task).filter(Task.id == task_id).first()
+        if not task or not RecurrenceService.should_create_next_instance(db, task_id):
+            return None
+            
+        # Calculate the next occurrence date
+        base_date = datetime.now(timezone.utc)
+        
+        # If we have previous instances, base the next occurrence on the last one
+        last_instance = db.query(Task).filter(
+            Task.recurrence_parent_id == task_id
+        ).order_by(Task.created_at.desc()).first()
+        
+        if last_instance and last_instance.due_date:
+            base_date = last_instance.due_date
+        elif task.due_date:
+            base_date = task.due_date
+            
+        next_date = RecurrenceService.calculate_next_occurrence(
+            base_date,
+            task.recurrence_pattern,
+            task.recurrence_interval or 1,
+            [int(x) for x in task.recurrence_days_of_week.split(',')] if task.recurrence_days_of_week else None,
+            task.recurrence_day_of_month,
+            task.recurrence_month_of_year
+        )
+        
+        if not next_date:
+            return None
+            
+        # Create the new instance
+        new_instance = RecurrenceService.create_recurring_instance(db, task, next_date)
+        db.commit()
+        
+        return new_instance

@@ -193,14 +193,24 @@ class WebhookService:
             if event_type.value in sub_events or "*" in sub_events:
                 relevant_subscriptions.append(sub)
         
-        # Send webhooks asynchronously
+        # Queue webhook deliveries as background tasks
+        from app.tasks.webhooks import deliver_webhook
+        
         for subscription in relevant_subscriptions:
-            WebhookService._deliver_webhook(
-                db,
-                subscription,
+            # Prepare webhook payload
+            webhook_payload = {
+                "event": event_type.value,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "data": payload
+            }
+            
+            deliver_webhook.delay(
+                subscription.id,
                 event_type.value,
-                payload
+                webhook_payload
             )
+            
+        logger.info(f"Queued {len(relevant_subscriptions)} webhook deliveries for event {event_type.value}")
     
     @staticmethod
     def _deliver_webhook(
@@ -302,32 +312,15 @@ class WebhookService:
     
     @staticmethod
     def retry_failed_deliveries(db: Session):
-        """Retry failed webhook deliveries (called by background job)."""
-        now = datetime.now(timezone.utc)
+        """Retry failed webhook deliveries - Now handled by Celery periodic task."""
+        # This method is replaced by the Celery periodic task
+        # app.tasks.webhooks.retry_failed_webhooks
+        logger.warning("retry_failed_deliveries called directly - this should be handled by Celery periodic task")
         
-        # Find deliveries that need retry
-        deliveries = db.query(WebhookDelivery).filter(
-            WebhookDelivery.next_retry_at <= now,
-            WebhookDelivery.retry_count < 3
-        ).all()
-        
-        for delivery in deliveries:
-            subscription = delivery.subscription
-            if not subscription.is_active:
-                continue
-            
-            # Re-deliver the webhook
-            payload = json.loads(delivery.payload)
-            WebhookService._deliver_webhook(
-                db,
-                subscription,
-                delivery.event_type,
-                payload["data"]
-            )
-            
-            # Mark old delivery as retried
-            delivery.next_retry_at = None
-            db.commit()
+        # For backward compatibility, we can queue the Celery task
+        from app.core.celery_app import celery_app
+        celery_app.send_task('app.tasks.webhooks.retry_failed_webhooks')
+        logger.info("Queued webhook retry task")
     
     @staticmethod
     def cleanup_old_deliveries(db: Session, days: int = 30):
