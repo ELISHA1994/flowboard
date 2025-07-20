@@ -1,17 +1,28 @@
-from fastapi import APIRouter, HTTPException, status, Query, Depends
+from fastapi import APIRouter, HTTPException, status, Query, Depends, BackgroundTasks
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import uuid
 
 from app.db.database import get_db
-from app.db.models import Task as TaskModel, TaskStatus, TaskPriority, User as UserModel
-from app.models.task import TaskCreate, TaskUpdate, TaskResponse, TaskTimeUpdate, TaskCategoryUpdate, TaskTagUpdate, TaskDependencyCreate, TaskDependencyResponse
+from app.db.models import (
+    Task as TaskModel, TaskStatus, TaskPriority, User as UserModel,
+    Project, ProjectRole, TaskShare, User
+)
+from app.models.task import (
+    TaskCreate, TaskUpdate, TaskResponse, TaskTimeUpdate,
+    TaskCategoryUpdate, TaskTagUpdate, TaskDependencyResponse,
+    TaskShareCreate, TaskShareResponse, RecurrenceConfig
+)
 from app.core.middleware.jwt_auth_backend import get_current_active_user
 from app.services.task_service import TaskService
 from app.services.category_service import CategoryService
 from app.services.tag_service import TagService
+from app.services.webhook_service import WebhookService, WebhookEvent
 from app.services.task_dependency_service import TaskDependencyService
+from app.services.recurrence_service import RecurrenceService
+from app.services.calendar_service import CalendarService
+from app.services.notification_service import NotificationService
 
 router = APIRouter()
 
@@ -30,6 +41,8 @@ def format_task_response(task: TaskModel, include_subtasks: bool = False) -> dic
         "actual_hours": task.actual_hours,
         "position": task.position,
         "user_id": task.user_id,
+        "project_id": task.project_id,
+        "assigned_to_id": task.assigned_to_id,
         "completed_at": task.completed_at,
         "created_at": task.created_at,
         "updated_at": task.updated_at,
@@ -38,8 +51,36 @@ def format_task_response(task: TaskModel, include_subtasks: bool = False) -> dic
         "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in task.tags],
         "subtasks": [],
         "dependencies": [],
-        "dependents": []
+        "dependents": [],
+        "project": None,
+        "assigned_to": None,
+        # Recurrence fields
+        "is_recurring": task.is_recurring if hasattr(task, 'is_recurring') else False,
+        "recurrence_pattern": task.recurrence_pattern if hasattr(task, 'recurrence_pattern') else None,
+        "recurrence_interval": task.recurrence_interval if hasattr(task, 'recurrence_interval') else None,
+        "recurrence_days_of_week": task.recurrence_days_of_week if hasattr(task, 'recurrence_days_of_week') else None,
+        "recurrence_day_of_month": task.recurrence_day_of_month if hasattr(task, 'recurrence_day_of_month') else None,
+        "recurrence_month_of_year": task.recurrence_month_of_year if hasattr(task, 'recurrence_month_of_year') else None,
+        "recurrence_end_date": task.recurrence_end_date if hasattr(task, 'recurrence_end_date') else None,
+        "recurrence_count": task.recurrence_count if hasattr(task, 'recurrence_count') else None,
+        "recurrence_parent_id": task.recurrence_parent_id if hasattr(task, 'recurrence_parent_id') else None
     }
+    
+    # Include project info if available
+    if task.project_id and hasattr(task, 'project') and task.project:
+        response["project"] = {
+            "id": task.project.id,
+            "name": task.project.name,
+            "description": task.project.description
+        }
+    
+    # Include assigned_to user info if available
+    if task.assigned_to_id and hasattr(task, 'assigned_to') and task.assigned_to:
+        response["assigned_to"] = {
+            "id": task.assigned_to.id,
+            "username": task.assigned_to.username,
+            "email": task.assigned_to.email
+        }
     
     # Include subtasks if requested
     if include_subtasks and hasattr(task, 'subtasks'):
@@ -67,6 +108,7 @@ def format_task_response(task: TaskModel, include_subtasks: bool = False) -> dic
 @router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     task_data: TaskCreate, 
+    background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -97,22 +139,81 @@ async def create_task(
                 detail=f"Parent task with id '{task_data.parent_task_id}' not found"
             )
     
-    db_task = TaskModel(
-        id=str(uuid.uuid4()),
-        title=task_data.title,
-        description=task_data.description,
-        status=task_data.status,
-        priority=task_data.priority,
-        due_date=task_data.due_date,
-        start_date=task_data.start_date,
-        estimated_hours=task_data.estimated_hours,
-        position=task_data.position,
-        parent_task_id=task_data.parent_task_id,
-        user_id=current_user.id,
-        actual_hours=0.0
-    )
-    db.add(db_task)
-    db.flush()  # Flush to get the ID without committing
+    # Validate project permissions if project_id is specified
+    if task_data.project_id:
+        project = db.query(Project).filter(Project.id == task_data.project_id).first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with id '{task_data.project_id}' not found"
+            )
+        
+        # Check if user has permission to create tasks in this project
+        if not project.has_permission(current_user.id, ProjectRole.MEMBER):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to create tasks in this project"
+            )
+    
+    # Validate assigned_to_id if specified
+    if task_data.assigned_to_id:
+        # If task is in a project, ensure assigned user is a project member
+        if task_data.project_id:
+            assigned_user_role = project.get_member_role(task_data.assigned_to_id)
+            if not assigned_user_role:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User '{task_data.assigned_to_id}' is not a member of this project"
+                )
+        else:
+            # For personal tasks, verify the assigned user exists
+            assigned_user = db.query(User).filter(User.id == task_data.assigned_to_id).first()
+            if not assigned_user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"User with id '{task_data.assigned_to_id}' not found"
+                )
+    
+    # Check if this is a recurring task
+    if task_data.recurrence:
+        # Use RecurrenceService to create task with recurrence
+        task_dict = {
+            "title": task_data.title,
+            "description": task_data.description,
+            "status": task_data.status,
+            "priority": task_data.priority,
+            "due_date": task_data.due_date,
+            "start_date": task_data.start_date,
+            "estimated_hours": task_data.estimated_hours,
+            "position": task_data.position,
+            "parent_task_id": task_data.parent_task_id,
+            "project_id": task_data.project_id,
+            "assigned_to_id": task_data.assigned_to_id,
+            "actual_hours": 0.0
+        }
+        db_task = RecurrenceService.create_task_with_recurrence(
+            db, task_dict, task_data.recurrence, current_user.id
+        )
+    else:
+        # Create regular task
+        db_task = TaskModel(
+            id=str(uuid.uuid4()),
+            title=task_data.title,
+            description=task_data.description,
+            status=task_data.status,
+            priority=task_data.priority,
+            due_date=task_data.due_date,
+            start_date=task_data.start_date,
+            estimated_hours=task_data.estimated_hours,
+            position=task_data.position,
+            parent_task_id=task_data.parent_task_id,
+            project_id=task_data.project_id,
+            assigned_to_id=task_data.assigned_to_id,
+            user_id=current_user.id,
+            actual_hours=0.0
+        )
+        db.add(db_task)
+        db.flush()  # Flush to get the ID without committing
     
     # Handle categories
     if task_data.category_ids:
@@ -140,8 +241,38 @@ async def create_task(
     db.commit()
     db.refresh(db_task)
     
+    # Trigger webhook for task creation
+    task_data_for_webhook = format_task_response(db_task)
+    WebhookService.trigger_webhook(
+        db,
+        WebhookEvent.TASK_CREATED,
+        task_data_for_webhook,
+        user_id=current_user.id,
+        project_id=db_task.project_id
+    )
+    
+    # Send notification if task was assigned to someone else
+    if db_task.assigned_to_id and db_task.assigned_to_id != current_user.id:
+        NotificationService.notify_task_assigned(db, db_task, current_user)
+    
+    # Create due date reminders if task has a due date
+    if db_task.due_date:
+        NotificationService.create_due_date_reminders(db, db_task)
+    
+    # Sync with calendar integrations in background
+    async def sync_task_to_calendars():
+        integrations = CalendarService.get_user_integrations(db, current_user.id)
+        for integration in integrations:
+            try:
+                await CalendarService.sync_task(db, db_task, integration, "create")
+            except Exception as e:
+                # Log error but don't fail the request
+                pass
+    
+    background_tasks.add_task(sync_task_to_calendars)
+    
     # Format response with all relationships
-    return format_task_response(db_task)
+    return task_data_for_webhook
 
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
@@ -149,17 +280,30 @@ async def get_task(
     current_user: UserModel = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Retrieve a task by ID (must belong to current user)"""
-    task = db.query(TaskModel).filter(
-        TaskModel.id == task_id,
-        TaskModel.user_id == current_user.id
-    ).first()
+    """Retrieve a task by ID"""
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
     
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Task with id '{task_id}' not found"
         )
+    
+    # Check if user has access to the task
+    if task.user_id != current_user.id:
+        # If task belongs to a project, check project permissions
+        if task.project_id:
+            project = db.query(Project).filter(Project.id == task.project_id).first()
+            if not project or not project.has_permission(current_user.id, ProjectRole.VIEWER):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to view this task"
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this task"
+            )
     
     return format_task_response(task)
 
@@ -167,20 +311,34 @@ async def get_task(
 async def update_task(
     task_id: str, 
     task_update: TaskUpdate,
+    background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Update a task (must belong to current user)"""
-    task = db.query(TaskModel).filter(
-        TaskModel.id == task_id,
-        TaskModel.user_id == current_user.id
-    ).first()
+    """Update a task"""
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
     
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Task with id '{task_id}' not found"
         )
+    
+    # Check if user has permission to update the task
+    if task.user_id != current_user.id:
+        # If task belongs to a project, check project permissions
+        if task.project_id:
+            project = db.query(Project).filter(Project.id == task.project_id).first()
+            if not project or not project.has_permission(current_user.id, ProjectRole.MEMBER):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to update this task"
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to update this task"
+            )
     
     update_data = task_update.model_dump(exclude_unset=True)
     
@@ -207,6 +365,53 @@ async def update_task(
     if 'tag_names' in update_data:
         TagService.set_task_tags(db, task_id, update_data['tag_names'], current_user.id)
         update_data.pop('tag_names')
+    
+    # Handle project update
+    if 'project_id' in update_data:
+        if update_data['project_id'] != task.project_id:
+            # If changing project, verify permissions for both old and new projects
+            if task.project_id:
+                old_project = db.query(Project).filter(Project.id == task.project_id).first()
+                if old_project and not old_project.has_permission(current_user.id, ProjectRole.MEMBER):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="You don't have permission to remove tasks from the current project"
+                    )
+            
+            if update_data['project_id']:
+                new_project = db.query(Project).filter(Project.id == update_data['project_id']).first()
+                if not new_project:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Project with id '{update_data['project_id']}' not found"
+                    )
+                if not new_project.has_permission(current_user.id, ProjectRole.MEMBER):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="You don't have permission to add tasks to this project"
+                    )
+    
+    # Handle assigned_to_id update
+    if 'assigned_to_id' in update_data:
+        if update_data['assigned_to_id']:
+            # If task is in a project, ensure assigned user is a project member
+            if task.project_id:
+                project = db.query(Project).filter(Project.id == task.project_id).first()
+                if project:
+                    assigned_user_role = project.get_member_role(update_data['assigned_to_id'])
+                    if not assigned_user_role:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"User '{update_data['assigned_to_id']}' is not a member of this project"
+                        )
+            else:
+                # For personal tasks, verify the assigned user exists
+                assigned_user = db.query(User).filter(User.id == update_data['assigned_to_id']).first()
+                if not assigned_user:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"User with id '{update_data['assigned_to_id']}' not found"
+                    )
     
     # Handle parent task update
     if 'parent_task_id' in update_data:
@@ -242,6 +447,16 @@ async def update_task(
                 )
         update_data.pop('depends_on_ids')
     
+    # Handle recurrence update
+    if 'recurrence' in update_data:
+        if update_data['recurrence']:
+            recurrence_config = RecurrenceConfig(**update_data['recurrence'])
+            RecurrenceService.update_recurrence(db, task, recurrence_config)
+        else:
+            # Remove recurrence if set to None
+            RecurrenceService.delete_recurrence(db, task, delete_instances=False)
+        update_data.pop('recurrence')
+    
     for field, value in update_data.items():
         setattr(task, field, value)
     
@@ -254,19 +469,53 @@ async def update_task(
         if parent_task:
             TaskDependencyService.update_parent_task_status(db, parent_task)
     
-    return format_task_response(task)
+    # Trigger webhook for task update
+    task_data_for_webhook = format_task_response(task)
+    WebhookService.trigger_webhook(
+        db,
+        WebhookEvent.TASK_UPDATED,
+        task_data_for_webhook,
+        user_id=current_user.id,
+        project_id=task.project_id
+    )
+    
+    # Check if task was completed
+    if 'status' in update_data and update_data['status'] == TaskStatus.DONE:
+        WebhookService.trigger_webhook(
+            db,
+            WebhookEvent.TASK_COMPLETED,
+            task_data_for_webhook,
+            user_id=current_user.id,
+            project_id=task.project_id
+        )
+    
+    # Send notification if task was assigned
+    if 'assigned_to_id' in update_data and task.assigned_to_id and task.assigned_to_id != current_user.id:
+        NotificationService.notify_task_assigned(db, task, current_user)
+    
+    # Sync with calendar integrations in background
+    async def sync_task_to_calendars():
+        integrations = CalendarService.get_user_integrations(db, current_user.id)
+        for integration in integrations:
+            try:
+                await CalendarService.sync_task(db, task, integration, "update")
+            except Exception as e:
+                # Log error but don't fail the request
+                pass
+    
+    background_tasks.add_task(sync_task_to_calendars)
+    
+    return task_data_for_webhook
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
     task_id: str,
+    background_tasks: BackgroundTasks,
     current_user: UserModel = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a task (must belong to current user)"""
-    task = db.query(TaskModel).filter(
-        TaskModel.id == task_id,
-        TaskModel.user_id == current_user.id
-    ).first()
+    """Delete a task"""
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
     
     if not task:
         raise HTTPException(
@@ -274,8 +523,49 @@ async def delete_task(
             detail=f"Task with id '{task_id}' not found"
         )
     
+    # Check if user has permission to delete the task
+    if task.user_id != current_user.id:
+        # If task belongs to a project, check project permissions
+        if task.project_id:
+            project = db.query(Project).filter(Project.id == task.project_id).first()
+            if not project or not project.has_permission(current_user.id, ProjectRole.ADMIN):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to delete this task"
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to delete this task"
+            )
+    
+    # Prepare task data for webhook before deletion
+    task_data_for_webhook = format_task_response(task)
+    project_id = task.project_id
+    
+    # Sync with calendar integrations in background (delete events)
+    async def sync_task_deletion_to_calendars():
+        integrations = CalendarService.get_user_integrations(db, current_user.id)
+        for integration in integrations:
+            try:
+                await CalendarService.sync_task(db, task, integration, "delete")
+            except Exception as e:
+                # Log error but don't fail the request
+                pass
+    
+    background_tasks.add_task(sync_task_deletion_to_calendars)
+    
     db.delete(task)
     db.commit()
+    
+    # Trigger webhook for task deletion
+    WebhookService.trigger_webhook(
+        db,
+        WebhookEvent.TASK_DELETED,
+        task_data_for_webhook,
+        user_id=current_user.id,
+        project_id=project_id
+    )
 
 @router.get("/", response_model=List[TaskResponse])
 async def list_tasks(
@@ -285,6 +575,8 @@ async def list_tasks(
     due_after: Optional[datetime] = Query(None, description="Filter tasks due after this date"),
     category_id: Optional[str] = Query(None, description="Filter by category ID"),
     tag_name: Optional[str] = Query(None, description="Filter by tag name"),
+    project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    assigned_to_id: Optional[str] = Query(None, description="Filter by assigned user ID"),
     sort_by: str = Query("position", description="Sort by: position, due_date, priority, created_at"),
     skip: int = Query(0, ge=0, description="Number of tasks to skip"),
     limit: int = Query(10, ge=1, le=100, description="Number of tasks to return"),
@@ -312,6 +604,16 @@ async def list_tasks(
         query = query.join(TaskModel.tags).filter(
             TaskModel.tags.any(name=tag_name_lower)
         )
+    if project_id:
+        # Verify user has access to the project
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if project and project.has_permission(current_user.id, ProjectRole.VIEWER):
+            query = query.filter(TaskModel.project_id == project_id)
+        else:
+            # Return empty list if user doesn't have access
+            return []
+    if assigned_to_id:
+        query = query.filter(TaskModel.assigned_to_id == assigned_to_id)
     
     # Apply sorting
     if sort_by == "due_date":
@@ -635,3 +937,360 @@ async def check_can_complete_task(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
+
+
+@router.get("/project/{project_id}", response_model=List[TaskResponse])
+async def get_project_tasks(
+    project_id: str,
+    task_status: Optional[TaskStatus] = Query(None, description="Filter by status"),
+    priority: Optional[TaskPriority] = Query(None, description="Filter by priority"),
+    include_subtasks: bool = Query(False, description="Include subtasks in response"),
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all tasks for a specific project"""
+    # Verify user has access to the project
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with id '{project_id}' not found"
+        )
+    
+    if not project.has_permission(current_user.id, ProjectRole.VIEWER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view tasks in this project"
+        )
+    
+    # Build query
+    query = db.query(TaskModel).filter(TaskModel.project_id == project_id)
+    
+    # Apply filters
+    if task_status:
+        query = query.filter(TaskModel.status == task_status)
+    if priority:
+        query = query.filter(TaskModel.priority == priority)
+    
+    # Order by position by default
+    query = query.order_by(TaskModel.position)
+    
+    tasks = query.all()
+    
+    return [format_task_response(task, include_subtasks=include_subtasks) for task in tasks]
+
+
+# Task sharing endpoints
+@router.post("/{task_id}/share", response_model=TaskShareResponse)
+async def share_task(
+    task_id: str,
+    share_data: TaskShareCreate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Share a task with another user"""
+    # Verify task exists and user has permission to share it
+    task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task with id '{task_id}' not found"
+        )
+    
+    # Check if user can share this task
+    can_share = False
+    if task.user_id == current_user.id:
+        can_share = True
+    elif task.project_id:
+        project = db.query(Project).filter(Project.id == task.project_id).first()
+        if project and project.has_permission(current_user.id, ProjectRole.MEMBER):
+            can_share = True
+    
+    if not can_share:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to share this task"
+        )
+    
+    # Verify the user to share with exists
+    shared_with_user = db.query(User).filter(User.id == share_data.shared_with_id).first()
+    if not shared_with_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id '{share_data.shared_with_id}' not found"
+        )
+    
+    # Check if task is already shared with this user
+    existing_share = db.query(TaskShare).filter(
+        TaskShare.task_id == task_id,
+        TaskShare.shared_with_id == share_data.shared_with_id
+    ).first()
+    
+    if existing_share:
+        # Update existing share
+        existing_share.permission = share_data.permission
+        existing_share.expires_at = share_data.expires_at
+        db.commit()
+        db.refresh(existing_share)
+        share = existing_share
+    else:
+        # Create new share
+        share = TaskShare(
+            id=str(uuid.uuid4()),
+            task_id=task_id,
+            shared_by_id=current_user.id,
+            shared_with_id=share_data.shared_with_id,
+            permission=share_data.permission,
+            expires_at=share_data.expires_at
+        )
+        db.add(share)
+        db.commit()
+        db.refresh(share)
+    
+    # Return formatted response
+    return {
+        "id": share.id,
+        "task_id": share.task_id,
+        "shared_by_id": share.shared_by_id,
+        "shared_with_id": share.shared_with_id,
+        "permission": share.permission,
+        "created_at": share.created_at,
+        "expires_at": share.expires_at,
+        "task": {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description
+        },
+        "shared_by": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email
+        },
+        "shared_with": {
+            "id": shared_with_user.id,
+            "username": shared_with_user.username,
+            "email": shared_with_user.email
+        }
+    }
+
+
+@router.get("/shared/with-me", response_model=List[TaskShareResponse])
+async def get_tasks_shared_with_me(
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all tasks shared with the current user"""
+    shares = db.query(TaskShare).filter(
+        TaskShare.shared_with_id == current_user.id
+    ).all()
+    
+    result = []
+    for share in shares:
+        # Skip expired shares
+        if share.expires_at and share.expires_at < datetime.now(timezone.utc):
+            continue
+            
+        task = share.task
+        shared_by = share.shared_by
+        
+        result.append({
+            "id": share.id,
+            "task_id": share.task_id,
+            "shared_by_id": share.shared_by_id,
+            "shared_with_id": share.shared_with_id,
+            "permission": share.permission,
+            "created_at": share.created_at,
+            "expires_at": share.expires_at,
+            "task": {
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+                "status": task.status,
+                "priority": task.priority
+            },
+            "shared_by": {
+                "id": shared_by.id,
+                "username": shared_by.username,
+                "email": shared_by.email
+            },
+            "shared_with": {
+                "id": current_user.id,
+                "username": current_user.username,
+                "email": current_user.email
+            }
+        })
+    
+    return result
+
+
+@router.delete("/{task_id}/share/{share_id}")
+async def remove_task_share(
+    task_id: str,
+    share_id: str,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Remove a task share"""
+    share = db.query(TaskShare).filter(
+        TaskShare.id == share_id,
+        TaskShare.task_id == task_id
+    ).first()
+    
+    if not share:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task share not found"
+        )
+    
+    # Only the person who shared or the task owner can remove the share
+    task = share.task
+    if share.shared_by_id != current_user.id and task.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to remove this share"
+        )
+    
+    db.delete(share)
+    db.commit()
+    
+    return {"message": "Task share removed successfully"}
+
+
+# Recurring task endpoints
+@router.get("/{task_id}/recurrence/instances", response_model=List[TaskResponse])
+async def get_recurring_task_instances(
+    task_id: str,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all instances of a recurring task"""
+    # Get the parent recurring task
+    parent_task = db.query(TaskModel).filter(
+        TaskModel.id == task_id
+    ).first()
+    
+    if not parent_task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task with id '{task_id}' not found"
+        )
+    
+    # Check if user has access to the task
+    if parent_task.user_id != current_user.id:
+        if parent_task.project_id:
+            project = db.query(Project).filter(Project.id == parent_task.project_id).first()
+            if not project or not project.has_permission(current_user.id, ProjectRole.VIEWER):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to view this task"
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to view this task"
+            )
+    
+    if not parent_task.is_recurring:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This is not a recurring task"
+        )
+    
+    # Get all instances
+    instances = db.query(TaskModel).filter(
+        TaskModel.recurrence_parent_id == task_id
+    ).order_by(TaskModel.start_date).all()
+    
+    # Include the parent task as well
+    all_tasks = [parent_task] + instances
+    
+    return [format_task_response(task) for task in all_tasks]
+
+
+@router.post("/{task_id}/recurrence/next-occurrence")
+async def get_next_occurrence_date(
+    task_id: str,
+    reference_date: datetime = Query(None, description="Reference date to calculate from (defaults to now)"),
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Calculate the next occurrence date for a recurring task"""
+    task = db.query(TaskModel).filter(
+        TaskModel.id == task_id,
+        TaskModel.user_id == current_user.id
+    ).first()
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task with id '{task_id}' not found"
+        )
+    
+    if not task.is_recurring:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This is not a recurring task"
+        )
+    
+    # Use reference date or current date
+    base_date = reference_date or datetime.now(timezone.utc)
+    
+    # Parse days of week if needed
+    days_of_week = None
+    if task.recurrence_days_of_week:
+        days_of_week = [int(d) for d in task.recurrence_days_of_week.split(',')]
+    
+    next_date = RecurrenceService.calculate_next_occurrence(
+        base_date=base_date,
+        pattern=task.recurrence_pattern,
+        interval=task.recurrence_interval or 1,
+        days_of_week=days_of_week,
+        day_of_month=task.recurrence_day_of_month,
+        month_of_year=task.recurrence_month_of_year
+    )
+    
+    if not next_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not calculate next occurrence date"
+        )
+    
+    return {
+        "next_occurrence": next_date,
+        "pattern": task.recurrence_pattern,
+        "interval": task.recurrence_interval
+    }
+
+
+@router.delete("/{task_id}/recurrence")
+async def delete_task_recurrence(
+    task_id: str,
+    delete_instances: bool = Query(False, description="Also delete future instances"),
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Remove recurrence from a task"""
+    task = db.query(TaskModel).filter(
+        TaskModel.id == task_id,
+        TaskModel.user_id == current_user.id
+    ).first()
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task with id '{task_id}' not found"
+        )
+    
+    if not task.is_recurring:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This is not a recurring task"
+        )
+    
+    RecurrenceService.delete_recurrence(db, task, delete_instances=delete_instances)
+    db.commit()
+    
+    return {
+        "message": "Recurrence removed successfully",
+        "instances_deleted": delete_instances
+    }

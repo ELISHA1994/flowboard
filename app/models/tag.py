@@ -32,7 +32,6 @@ class TagBase(BaseModel):
 
 class TagCreate(TagBase):
     """Model for creating a new tag"""
-    pass
 
 
 class TagUpdate(BaseModel):

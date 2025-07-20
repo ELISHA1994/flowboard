@@ -24,7 +24,6 @@ class ProjectBase(BaseModel):
 
 class ProjectCreate(ProjectBase):
     """Model for creating a new project"""
-    pass
 
 
 class ProjectUpdate(BaseModel):

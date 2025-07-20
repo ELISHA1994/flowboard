@@ -8,8 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app.db.models import Project, ProjectMember, ProjectInvitation, User, ProjectRole
 from app.models.project import (
     ProjectCreate, ProjectUpdate, ProjectResponse, ProjectDetailResponse,
-    ProjectInvitationCreate, ProjectInvitationResponse, ProjectMemberUpdate,
-    ProjectMemberResponse
+    ProjectInvitationCreate, ProjectMemberResponse
 )
 import uuid
 

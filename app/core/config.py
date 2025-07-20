@@ -3,7 +3,7 @@ Centralized configuration for the application.
 Handles environment variables and provides settings for different environments.
 """
 import os
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from functools import lru_cache
 from dotenv import load_dotenv
 
@@ -62,6 +62,15 @@ class Settings:
     # Pagination
     DEFAULT_PAGE_SIZE: int = int(os.getenv("DEFAULT_PAGE_SIZE", "10"))
     MAX_PAGE_SIZE: int = int(os.getenv("MAX_PAGE_SIZE", "100"))
+    
+    # File Upload Settings
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
+    MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", str(10 * 1024 * 1024)))  # 10MB default
+    ALLOWED_FILE_TYPES: list = os.getenv(
+        "ALLOWED_FILE_TYPES",
+        ".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.zip"
+    ).split(",")
+    SECURE_FILENAME_PATTERN: str = r"^[\w\-. ]+$"
     
     @property
     def database_settings(self) -> Dict[str, Any]:

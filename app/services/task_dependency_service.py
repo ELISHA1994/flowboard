@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from sqlalchemy.sql import func
 from app.db.models import Task, TaskDependency, TaskStatus
-from app.models.task import TaskDependencyCreate
 from app.core.exceptions import (
     BadRequestException,
     NotFoundException,

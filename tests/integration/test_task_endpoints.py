@@ -214,7 +214,7 @@ class TestTaskGet:
         
         response = authenticated_client.get(f"/tasks/{other_task.id}")
         
-        assert response.status_code == 404
+        assert response.status_code == 403
 
 
 @pytest.mark.integration
@@ -272,7 +272,7 @@ class TestTaskUpdate:
         update_data = {"title": "Hacked!"}
         response = authenticated_client.put(f"/tasks/{other_task.id}", json=update_data)
         
-        assert response.status_code == 404
+        assert response.status_code == 403
 
 
 @pytest.mark.integration
@@ -309,7 +309,7 @@ class TestTaskDelete:
         
         response = authenticated_client.delete(f"/tasks/{other_task.id}")
         
-        assert response.status_code == 404
+        assert response.status_code == 403
         
         # Verify task still exists
         task_exists = test_db.query(Task).filter(Task.id == other_task.id).first()

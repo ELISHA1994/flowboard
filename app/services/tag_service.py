@@ -1,7 +1,6 @@
-from typing import List, Optional, Set
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from app.db.models import Tag, Task, User
+from app.db.models import Tag, Task
 from app.models.tag import TagCreate, TagUpdate
 from app.core.logging import logger
 import uuid

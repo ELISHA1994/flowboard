@@ -167,7 +167,7 @@ class TestMultiUserWorkflow:
         # Alice tries to access Bob's task - should fail
         bob_task_id = bob_tasks[0]["id"]
         response = test_client.get(f"/tasks/{bob_task_id}", headers=alice_headers)
-        assert response.status_code == 404
+        assert response.status_code == 403
         
         # Alice tries to update Bob's task - should fail
         response = test_client.put(
@@ -175,11 +175,11 @@ class TestMultiUserWorkflow:
             json={"title": "Hacked!"}, 
             headers=alice_headers
         )
-        assert response.status_code == 404
+        assert response.status_code == 403
         
         # Alice tries to delete Bob's task - should fail
         response = test_client.delete(f"/tasks/{bob_task_id}", headers=alice_headers)
-        assert response.status_code == 404
+        assert response.status_code == 403
 
 
 @pytest.mark.e2e

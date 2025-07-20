@@ -123,6 +123,48 @@ def auth_headers(test_user_token: str) -> dict:
 
 
 @pytest.fixture
+def second_user(test_db: Session) -> User:
+    """
+    Create a second test user in the database.
+    """
+    user = User(
+        id=str(uuid.uuid4()),
+        username="testuser2",
+        email="test2@example.com",
+        hashed_password=get_password_hash("testpass456"),
+        is_active=True
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+    # Store the id to avoid detached session issues
+    user_id = user.id
+    # Reattach the object to ensure it's accessible
+    test_db.expire_on_commit = False
+    return user
+
+
+@pytest.fixture
+def second_user_token(second_user: User) -> str:
+    """
+    Create a valid JWT token for the second test user.
+    """
+    access_token_expires = timedelta(minutes=30)
+    return create_access_token(
+        data={"sub": second_user.username}, 
+        expires_delta=access_token_expires
+    )
+
+
+@pytest.fixture
+def second_auth_headers(second_user_token: str) -> dict:
+    """
+    Create authorization headers with the second test user token.
+    """
+    return {"Authorization": f"Bearer {second_user_token}"}
+
+
+@pytest.fixture
 def test_task(test_db: Session, test_user: User) -> Task:
     """
     Create a test task in the database.

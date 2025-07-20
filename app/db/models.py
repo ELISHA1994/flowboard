@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, Boolean, ForeignKey, Integer, Float, Table, Text, UniqueConstraint
+from sqlalchemy import Column, String, DateTime, Enum as SQLEnum, Boolean, ForeignKey, Integer, Float, Table, Text, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -19,6 +19,16 @@ class TaskPriority(str, enum.Enum):
     MEDIUM = "medium"
     HIGH = "high"
     URGENT = "urgent"
+
+
+class RecurrencePattern(str, enum.Enum):
+    """Recurrence pattern enumeration"""
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+    WEEKDAYS = "weekdays"  # Monday to Friday
+    CUSTOM = "custom"  # For advanced patterns
 
 
 # Association tables for many-to-many relationships
@@ -52,11 +62,21 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     # Relationships
-    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
+    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan", foreign_keys="Task.user_id")
     categories = relationship("Category", back_populates="user", cascade="all, delete-orphan")
     tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
     owned_projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan", foreign_keys="Project.owner_id")
     project_memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
+    mentions = relationship("CommentMention", back_populates="mentioned_user", cascade="all, delete-orphan")
+    uploaded_files = relationship("FileAttachment", back_populates="uploaded_by", cascade="all, delete-orphan")
+    saved_searches = relationship("SavedSearch", back_populates="user", cascade="all, delete-orphan")
+    time_logs = relationship("TimeLog", back_populates="user", cascade="all, delete-orphan")
+    webhook_subscriptions = relationship("WebhookSubscription", back_populates="user", cascade="all, delete-orphan")
+    calendar_integrations = relationship("CalendarIntegration", back_populates="user", cascade="all, delete-orphan")
+    notification_preferences = relationship("NotificationPreference", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    task_reminders = relationship("TaskReminder", back_populates="user", cascade="all, delete-orphan")
 
 
 class Task(Base):
@@ -91,12 +111,27 @@ class Task(Base):
     # Project support
     project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
     
+    # Assignment support
+    assigned_to_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    
+    # Recurrence fields
+    is_recurring = Column(Boolean, default=False, nullable=False)
+    recurrence_pattern = Column(SQLEnum(RecurrencePattern), nullable=True)
+    recurrence_interval = Column(Integer, nullable=True)  # e.g., every 2 days
+    recurrence_days_of_week = Column(String(20), nullable=True)  # For weekly: "1,3,5" (Mon, Wed, Fri)
+    recurrence_day_of_month = Column(Integer, nullable=True)  # For monthly: day number
+    recurrence_month_of_year = Column(Integer, nullable=True)  # For yearly: month number
+    recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
+    recurrence_count = Column(Integer, nullable=True)  # Number of occurrences
+    recurrence_parent_id = Column(String, ForeignKey("tasks.id"), nullable=True)  # Original recurring task
+    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
     
     # Relationships
-    user = relationship("User", back_populates="tasks")
+    user = relationship("User", back_populates="tasks", foreign_keys=[user_id])
+    assigned_to = relationship("User", foreign_keys=[assigned_to_id])
     categories = relationship("Category", secondary=task_categories, back_populates="tasks")
     tags = relationship("Tag", secondary=task_tags, back_populates="tasks")
     
@@ -119,6 +154,27 @@ class Task(Base):
     
     # Project relationship
     project = relationship("Project", back_populates="tasks")
+    
+    # Task shares relationship
+    shares = relationship("TaskShare", back_populates="task", cascade="all, delete-orphan")
+    
+    # Comments relationship
+    comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
+    
+    # File attachments
+    attachments = relationship("FileAttachment", back_populates="task", cascade="all, delete-orphan")
+    
+    # Recurrence relationships
+    recurrence_parent = relationship("Task", remote_side=[id], backref="recurrence_instances", foreign_keys=[recurrence_parent_id])
+    
+    # Time logs relationship
+    time_logs = relationship("TimeLog", back_populates="task", cascade="all, delete-orphan")
+    
+    # Calendar sync relationship
+    calendar_syncs = relationship("TaskCalendarSync", back_populates="task", cascade="all, delete-orphan")
+    
+    # Reminders relationship
+    reminders = relationship("TaskReminder", back_populates="task", cascade="all, delete-orphan")
 
 
 class Category(Base):
@@ -207,6 +263,7 @@ class Project(Base):
     owner = relationship("User", back_populates="owned_projects", foreign_keys=[owner_id])
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    webhook_subscriptions = relationship("WebhookSubscription", back_populates="project", cascade="all, delete-orphan")
     
     def get_member_role(self, user_id: str) -> ProjectRole:
         """Get the role of a user in this project"""
@@ -270,3 +327,285 @@ class ProjectInvitation(Base):
     # Relationships
     project = relationship("Project")
     inviter = relationship("User")
+
+
+class TaskSharePermission(str, enum.Enum):
+    """Enum for task share permissions"""
+    VIEW = "view"
+    EDIT = "edit"
+    COMMENT = "comment"
+
+
+class TaskShare(Base):
+    """Task sharing model for sharing individual tasks with other users"""
+    __tablename__ = "task_shares"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    shared_by_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    shared_with_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    permission = Column(SQLEnum(TaskSharePermission), default=TaskSharePermission.VIEW, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    task = relationship("Task", back_populates="shares")
+    shared_by = relationship("User", foreign_keys=[shared_by_id])
+    shared_with = relationship("User", foreign_keys=[shared_with_id])
+    
+    # Unique constraint to prevent duplicate shares
+    __table_args__ = (
+        UniqueConstraint('task_id', 'shared_with_id', name='_task_share_uc'),
+    )
+
+
+class Comment(Base):
+    """Comment model for task comments with @mention support"""
+    __tablename__ = "comments"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    parent_comment_id = Column(String, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    is_edited = Column(Boolean, default=False, nullable=False)
+    
+    # Relationships
+    task = relationship("Task", back_populates="comments")
+    user = relationship("User", back_populates="comments")
+    parent_comment = relationship("Comment", remote_side=[id], backref="replies")
+    mentions = relationship("CommentMention", back_populates="comment", cascade="all, delete-orphan")
+
+
+class CommentMention(Base):
+    """Tracks @mentions in comments"""
+    __tablename__ = "comment_mentions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    comment_id = Column(String, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False)
+    mentioned_user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    comment = relationship("Comment", back_populates="mentions")
+    mentioned_user = relationship("User", back_populates="mentions")
+    
+    # Unique constraint to prevent duplicate mentions
+    __table_args__ = (
+        UniqueConstraint('comment_id', 'mentioned_user_id', name='_comment_mention_uc'),
+    )
+
+
+class FileAttachment(Base):
+    """Model for file attachments on tasks"""
+    __tablename__ = "file_attachments"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    uploaded_by_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_size = Column(Integer, nullable=False)  # Size in bytes
+    mime_type = Column(String(100), nullable=True)
+    storage_path = Column(String(500), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    task = relationship("Task", back_populates="attachments")
+    uploaded_by = relationship("User", back_populates="uploaded_files")
+
+
+class SavedSearch(Base):
+    """Model for saved search queries"""
+    __tablename__ = "saved_searches"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    search_query = Column(Text, nullable=False)  # JSON serialized search query
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="saved_searches")
+    
+    # Unique constraint: only one default search per user
+    __table_args__ = (
+        UniqueConstraint('user_id', 'name', name='_user_search_name_uc'),
+    )
+
+
+class TimeLog(Base):
+    """Model for time tracking entries"""
+    __tablename__ = "time_logs"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    hours = Column(Float, nullable=False)
+    description = Column(Text, nullable=True)
+    logged_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    task = relationship("Task", back_populates="time_logs")
+    user = relationship("User", back_populates="time_logs")
+
+
+class WebhookSubscription(Base):
+    """Model for webhook subscriptions"""
+    __tablename__ = "webhook_subscriptions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)
+    url = Column(String(500), nullable=False)
+    secret = Column(String(255), nullable=True)  # For HMAC signature verification
+    events = Column(Text, nullable=False)  # JSON array of event types
+    is_active = Column(Boolean, default=True, nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="webhook_subscriptions")
+    project = relationship("Project", back_populates="webhook_subscriptions")
+    deliveries = relationship("WebhookDelivery", back_populates="subscription", cascade="all, delete-orphan")
+
+
+class WebhookDelivery(Base):
+    """Model for tracking webhook deliveries"""
+    __tablename__ = "webhook_deliveries"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    subscription_id = Column(String, ForeignKey("webhook_subscriptions.id", ondelete="CASCADE"), nullable=False)
+    event_type = Column(String(50), nullable=False)
+    payload = Column(Text, nullable=False)  # JSON payload
+    status_code = Column(Integer, nullable=True)
+    response = Column(Text, nullable=True)
+    error = Column(Text, nullable=True)
+    delivered_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    retry_count = Column(Integer, default=0, nullable=False)
+    next_retry_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    subscription = relationship("WebhookSubscription", back_populates="deliveries")
+
+
+class CalendarIntegration(Base):
+    """Model for calendar integrations"""
+    __tablename__ = "calendar_integrations"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    provider = Column(String(20), nullable=False)  # google, microsoft
+    calendar_id = Column(String(255), nullable=False)
+    calendar_name = Column(String(255), nullable=True)
+    access_token = Column(Text, nullable=False)  # Encrypted
+    refresh_token = Column(Text, nullable=True)  # Encrypted
+    token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    sync_enabled = Column(Boolean, default=True, nullable=False)
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    sync_direction = Column(String(20), default="both", nullable=False)  # to_calendar, from_calendar, both
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="calendar_integrations")
+    task_sync_mappings = relationship("TaskCalendarSync", back_populates="calendar_integration", cascade="all, delete-orphan")
+
+
+class TaskCalendarSync(Base):
+    """Model for mapping tasks to calendar events"""
+    __tablename__ = "task_calendar_sync"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    calendar_integration_id = Column(String, ForeignKey("calendar_integrations.id", ondelete="CASCADE"), nullable=False)
+    calendar_event_id = Column(String(255), nullable=False)
+    last_synced_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    task = relationship("Task", back_populates="calendar_syncs")
+    calendar_integration = relationship("CalendarIntegration", back_populates="task_sync_mappings")
+    
+    # Unique constraint
+    __table_args__ = (
+        UniqueConstraint('task_id', 'calendar_integration_id', name='_task_calendar_uc'),
+    )
+
+
+class NotificationPreference(Base):
+    """Model for user notification preferences"""
+    __tablename__ = "notification_preferences"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    notification_type = Column(String(50), nullable=False)  # task_due, task_assigned, comment_mention, etc.
+    channel = Column(String(20), nullable=False)  # email, in_app, push
+    enabled = Column(Boolean, default=True, nullable=False)
+    frequency = Column(String(20), default="immediate", nullable=False)  # immediate, daily_digest, weekly_digest
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="notification_preferences")
+    
+    # Unique constraint
+    __table_args__ = (
+        UniqueConstraint('user_id', 'notification_type', 'channel', name='_user_notification_uc'),
+    )
+
+
+class Notification(Base):
+    """Model for notifications"""
+    __tablename__ = "notifications"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    type = Column(String(50), nullable=False)  # task_due, task_assigned, comment_mention, etc.
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    data = Column(Text, nullable=True)  # JSON data for notification context
+    read = Column(Boolean, default=False, nullable=False)
+    read_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="notifications")
+    
+    # Indexes
+    __table_args__ = (
+        Index('ix_notifications_user_read', 'user_id', 'read'),
+        Index('ix_notifications_created_at', 'created_at'),
+    )
+
+
+class TaskReminder(Base):
+    """Model for task reminders"""
+    __tablename__ = "task_reminders"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    remind_at = Column(DateTime(timezone=True), nullable=False)
+    reminder_type = Column(String(20), default="due_date", nullable=False)  # due_date, custom
+    offset_minutes = Column(Integer, nullable=True)  # Minutes before due date
+    message = Column(Text, nullable=True)  # Custom reminder message
+    sent = Column(Boolean, default=False, nullable=False)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    
+    # Relationships
+    task = relationship("Task", back_populates="reminders")
+    user = relationship("User", back_populates="task_reminders")
+    
+    # Indexes
+    __table_args__ = (
+        Index('ix_task_reminders_remind_at', 'remind_at'),
+        Index('ix_task_reminders_sent', 'sent'),
+    )

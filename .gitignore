@@ -198,3 +198,7 @@ secrets/
 *.key
 *.crt
 *.p12
+.claude
+
+# File uploads
+uploads/

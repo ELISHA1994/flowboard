@@ -33,7 +33,6 @@ class CategoryBase(BaseModel):
 
 class CategoryCreate(CategoryBase):
     """Model for creating a new category"""
-    pass
 
 
 class CategoryUpdate(BaseModel):

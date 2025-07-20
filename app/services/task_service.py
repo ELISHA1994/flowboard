@@ -1,8 +1,8 @@
-from typing import List, Optional, Dict
+from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
-from app.db.models import Task as TaskModel, TaskStatus, TaskPriority
+from sqlalchemy import and_
+from app.db.models import Task as TaskModel, TaskStatus, TaskPriority, TimeLog
 from app.core.logging import logger
 
 class TaskService:
@@ -145,3 +145,64 @@ class TaskService:
         
         db.commit()
         return True
+    
+    @staticmethod
+    def add_time_to_task(
+        db: Session,
+        task_id: str,
+        user_id: str,
+        hours: float,
+        description: Optional[str] = None,
+        logged_at: Optional[datetime] = None
+    ) -> Optional[TaskModel]:
+        """Add time log to a task and update actual hours."""
+        # Get the task
+        task = TaskService.get_task_by_id(db, task_id, user_id)
+        if not task:
+            return None
+        
+        # Create time log entry
+        time_log = TimeLog(
+            task_id=task_id,
+            user_id=user_id,
+            hours=hours,
+            description=description,
+            logged_at=logged_at or datetime.now(timezone.utc)
+        )
+        
+        # Update task's actual hours
+        task.actual_hours = (task.actual_hours or 0) + hours
+        
+        # Add and commit
+        db.add(time_log)
+        db.commit()
+        db.refresh(task)
+        
+        logger.info(f"Added {hours} hours to task {task_id}")
+        return task
+    
+    @staticmethod
+    def get_task_by_id(db: Session, task_id: str, user_id: str) -> Optional[TaskModel]:
+        """Get a task by ID if user has access to it."""
+        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+        
+        if not task:
+            return None
+        
+        # Check if user has access (owner, assigned, or shared)
+        if task.user_id == user_id:
+            return task
+        
+        if task.assigned_to_id == user_id:
+            return task
+        
+        # Check if task is shared with user
+        for share in task.shares:
+            if share.shared_with_id == user_id:
+                return task
+        
+        # Check if user has access through project
+        if task.project and task.project.has_permission(user_id):
+            return task
+        
+        return None

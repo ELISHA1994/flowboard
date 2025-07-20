@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Query, Depends
-from typing import List, Optional
+from typing import List
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -98,6 +98,8 @@ async def get_tag(
     # Format response
     response_data = format_tag_response(tag)
     
+    # Always include tasks field for TagWithTasks response model
+    response_data["tasks"] = []
     if include_tasks:
         response_data["tasks"] = [
             {

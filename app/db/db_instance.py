@@ -1,4 +1,3 @@
-from sqlalchemy.orm import Session
 from app.db.database import get_db as _get_db
 
 # Re-export get_db for backward compatibility
