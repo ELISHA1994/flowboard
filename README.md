@@ -1,6 +1,6 @@
 # Task Management System - Monorepo
 
-A modern task management system built as a monorepo containing a FastAPI backend with clean architecture principles, and prepared for a Next.js frontend. Features JWT authentication, PostgreSQL database, Redis caching, Celery background tasks, and comprehensive task management capabilities.
+A modern full-stack task management system built as a monorepo. Features a FastAPI backend with clean architecture principles and a Next.js frontend with modern UI/UX. Includes JWT authentication, PostgreSQL database, Redis caching, Celery background tasks, and comprehensive task management capabilities.
 
 > **Note for Existing Users**: This repository has been converted to a monorepo structure. The backend code is now located in `apps/backend/`. All existing functionality remains the same, but the development workflow has been improved with Turborepo and pnpm workspaces.
 >
@@ -146,9 +146,10 @@ task-management-monorepo/
 - **Language**: TypeScript for type safety
 - **Styling**: Tailwind CSS v4 with CSS-first approach
 - **UI Components**: shadcn/ui + Radix UI primitives
-- **State Management**: Zustand (global), TanStack Query (server state)
-- **Forms**: React Hook Form with Zod validation
-- **Animations**: Framer Motion
+- **State Management**: React Context (auth), Zustand (global state - planned)
+- **Forms**: React Hook Form with Zod validation (planned)
+- **Authentication**: JWT-based with protected routes
+- **Dark Mode**: Built-in theme support with system preference detection
 - **Icons**: Lucide React
 
 ### Infrastructure
@@ -168,9 +169,9 @@ All commands should be run from the repository root directory:
 
 ```bash
 # Start services
-pnpm dev                 # Start all services (backend + future frontend)
+pnpm dev                 # Start all services (backend + frontend)
 pnpm dev:backend        # Start only backend service
-pnpm dev:web           # Start only frontend (when available)
+pnpm dev:web           # Start only frontend service
 
 # Docker management
 pnpm docker:up         # Start all services with Docker Compose
@@ -862,14 +863,15 @@ The project includes a comprehensive test suite with unit, integration, and end-
 
 When running with Docker (`pnpm docker:up` or `./setup.sh`):
 
-| Service             | URL                         | Description                                  |
-| ------------------- | --------------------------- | -------------------------------------------- |
-| **FastAPI Backend** | http://localhost:8000       | Main API server                              |
-| **Swagger UI**      | http://localhost:8000/docs  | Interactive API documentation                |
-| **ReDoc**           | http://localhost:8000/redoc | Alternative API documentation                |
-| **Flower**          | http://localhost:5555       | Celery task monitoring UI                    |
-| **PostgreSQL**      | localhost:5432              | Database (credentials in docker-compose.yml) |
-| **Redis**           | localhost:6379              | Cache and message broker                     |
+| Service              | URL                         | Description                                  |
+| -------------------- | --------------------------- | -------------------------------------------- |
+| **Next.js Frontend** | http://localhost:3000       | Modern React-based user interface            |
+| **FastAPI Backend**  | http://localhost:8000       | Main API server                              |
+| **Swagger UI**       | http://localhost:8000/docs  | Interactive API documentation                |
+| **ReDoc**            | http://localhost:8000/redoc | Alternative API documentation                |
+| **Flower**           | http://localhost:5555       | Celery task monitoring UI                    |
+| **PostgreSQL**       | localhost:5432              | Database (credentials in docker-compose.yml) |
+| **Redis**            | localhost:6379              | Cache and message broker                     |
 
 ### Health Checks
 

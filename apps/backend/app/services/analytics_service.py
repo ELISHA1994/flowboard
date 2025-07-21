@@ -85,11 +85,8 @@ class AnalyticsService:
         completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
         
         # Calculate average completion time
-        completed_with_time = db.query(
-            func.avg(
-                func.julianday(Task.completed_at) - func.julianday(Task.created_at)
-            )
-        ).filter(
+        # For PostgreSQL, use EXTRACT(EPOCH FROM ...) to get seconds
+        completed_tasks_with_time = db.query(Task).filter(
             or_(
                 Task.user_id == user_id,
                 Task.assigned_to_id == user_id
@@ -98,9 +95,15 @@ class AnalyticsService:
             Task.completed_at.isnot(None),
             Task.created_at >= start_date,
             Task.created_at <= end_date
-        ).scalar()
+        ).all()
         
-        avg_completion_days = float(completed_with_time) if completed_with_time else 0
+        avg_completion_days = 0
+        if completed_tasks_with_time:
+            total_days = sum(
+                (task.completed_at - task.created_at).total_seconds() / 86400
+                for task in completed_tasks_with_time
+            )
+            avg_completion_days = total_days / len(completed_tasks_with_time)
         
         # Get overdue tasks
         overdue_tasks = base_query.filter(
@@ -110,19 +113,19 @@ class AnalyticsService:
         
         return {
             "total_tasks": total_tasks,
-            "status_breakdown": {
+            "tasks_by_status": {
                 "todo": status_counts.get(TaskStatus.TODO, 0),
                 "in_progress": status_counts.get(TaskStatus.IN_PROGRESS, 0),
                 "done": status_counts.get(TaskStatus.DONE, 0)
             },
-            "priority_breakdown": {
+            "tasks_by_priority": {
                 "low": priority_counts.get(TaskPriority.LOW, 0),
                 "medium": priority_counts.get(TaskPriority.MEDIUM, 0),
                 "high": priority_counts.get(TaskPriority.HIGH, 0),
                 "urgent": priority_counts.get(TaskPriority.URGENT, 0)
             },
             "completion_rate": round(completion_rate, 2),
-            "average_completion_days": round(avg_completion_days, 2),
+            "average_completion_time": round(avg_completion_days, 2),
             "overdue_tasks": overdue_tasks,
             "date_range": {
                 "start": start_date.isoformat(),

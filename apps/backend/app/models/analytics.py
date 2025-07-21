@@ -29,12 +29,12 @@ class TimeLogResponse(BaseModel):
 class TaskStatistics(BaseModel):
     """Model for task statistics response."""
     total_tasks: int
-    status_breakdown: Dict[str, int]
-    priority_breakdown: Dict[str, int]
+    tasks_by_status: Dict[str, int]
+    tasks_by_priority: Dict[str, int]
     completion_rate: float
-    average_completion_days: float
+    average_completion_time: float
     overdue_tasks: int
-    date_range: Dict[str, str]
+    date_range: Optional[Dict[str, str]] = None
 
 
 class ProductivityTrend(BaseModel):

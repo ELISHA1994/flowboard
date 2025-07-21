@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle, Users, BarChart3, Zap } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function LandingPage() {
   return (
@@ -22,6 +23,7 @@ export default function LandingPage() {
             <Link href="#about" className="text-muted-foreground hover:text-foreground">
               About
             </Link>
+            <ThemeToggle />
             <Link href="/dashboard">
               <Button variant="default" size="sm">
                 Dashboard

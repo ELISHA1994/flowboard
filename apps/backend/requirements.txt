@@ -17,9 +17,11 @@ redis==5.0.1
 hiredis==2.2.3
 
 # Background Jobs
-celery==5.3.4
-celery[redis]==5.3.4
-kombu==5.3.4
+celery[redis]==5.5.3
+kombu==5.5.2
+
+# Analytics and Export
+openpyxl==3.1.2  # For Excel export
 
 # Development tools (optional)
 httpx==0.24.1  # For TestClient

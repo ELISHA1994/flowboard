@@ -27,6 +27,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Frontend lib folders should not be ignored
+!apps/web/lib/
+!packages/*/lib/
+
 # PyInstaller
 *.manifest
 *.spec

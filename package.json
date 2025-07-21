@@ -11,6 +11,7 @@
     "dev:backend": "turbo run dev --filter=@taskman/backend",
     "dev:web": "turbo run dev --filter=@taskman/web",
     "test:backend": "turbo run test --filter=@taskman/backend",
+    "test:web": "turbo run test --filter=@taskman/web",
     "generate:types": "pnpm --filter @taskman/backend generate:schema && pnpm --filter @taskman/types generate",
     "clean": "turbo run clean && rm -rf node_modules",
     "docker:up": "docker-compose up -d",

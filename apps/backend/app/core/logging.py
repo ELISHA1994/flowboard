@@ -13,6 +13,6 @@ logging.basicConfig(
 # Create logger instance
 logger = logging.getLogger(__name__)
 
-# Suppress some noisy loggers
-logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+# Configure uvicorn loggers to show request logs
+logging.getLogger("uvicorn.error").setLevel(logging.INFO)
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
