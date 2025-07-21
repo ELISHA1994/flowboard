@@ -40,6 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (error) {
           // Token might be invalid, clear it
           AuthService.clearToken();
+          setUser(null);
         }
       }
       setIsLoading(false);
@@ -47,6 +48,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     initializeAuth();
   }, []);
+
+  // Periodically validate token (every 5 minutes)
+  useEffect(() => {
+    if (!user) return;
+
+    const validateToken = async () => {
+      try {
+        const currentUser = await AuthService.getCurrentUser();
+        if (!currentUser) {
+          // Token is invalid
+          AuthService.clearToken();
+          setUser(null);
+          window.location.href = '/login';
+        }
+      } catch (error) {
+        // Token validation failed
+        AuthService.clearToken();
+        setUser(null);
+        window.location.href = '/login';
+      }
+    };
+
+    // Validate immediately when user changes
+    validateToken();
+
+    // Then validate every 5 minutes
+    const interval = setInterval(validateToken, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [user?.id]); // Only re-run if user ID changes
 
   const login = async (credentials: LoginRequest) => {
     setIsLoading(true);

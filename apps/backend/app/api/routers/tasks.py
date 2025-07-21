@@ -14,10 +14,15 @@ from app.db.models import Task as TaskModel
 from app.db.models import TaskPriority, TaskShare, TaskStatus
 from app.db.models import User
 from app.db.models import User as UserModel
-from app.models.task import (RecurrenceConfig, TaskCategoryUpdate, TaskCreate,
+from app.models.task import (BulkAssignUpdate, BulkCategoryUpdate,
+                             BulkDeleteRequest, BulkOperationResponse,
+                             BulkPriorityUpdate, BulkProjectMove,
+                             BulkStatusUpdate, BulkTagUpdate, BulkTaskUpdate,
+                             RecurrenceConfig, TaskCategoryUpdate, TaskCreate,
                              TaskDependencyResponse, TaskResponse,
                              TaskShareCreate, TaskShareResponse, TaskTagUpdate,
                              TaskTimeUpdate, TaskUpdate)
+from app.services.bulk_operations_service import BulkOperationsService
 from app.services.cache_service import (cache_service, invalidate_task_cache,
                                         invalidate_user_cache)
 from app.services.calendar_service import CalendarService
@@ -1542,3 +1547,245 @@ async def delete_task_recurrence(
         "message": "Recurrence removed successfully",
         "instances_deleted": delete_instances,
     }
+
+
+# Bulk operations endpoints
+@router.put("/bulk/update", response_model=BulkOperationResponse)
+async def bulk_update_tasks(
+    bulk_update: BulkTaskUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk update multiple tasks with the same changes
+    """
+    # Get the update data
+    update_data = bulk_update.updates.model_dump(exclude_unset=True)
+
+    # Handle different types of updates
+    if "status" in update_data:
+        result = BulkOperationsService.update_status(
+            db, current_user.id, bulk_update.task_ids, update_data["status"]
+        )
+    elif "priority" in update_data:
+        result = BulkOperationsService.update_priority(
+            db, current_user.id, bulk_update.task_ids, update_data["priority"]
+        )
+    elif "assigned_to_id" in update_data:
+        result = BulkOperationsService.update_assigned_to(
+            db, current_user.id, bulk_update.task_ids, update_data["assigned_to_id"]
+        )
+    elif "project_id" in update_data:
+        result = BulkOperationsService.move_to_project(
+            db, current_user.id, bulk_update.task_ids, update_data["project_id"]
+        )
+    else:
+        # For other updates, we need to handle them individually
+        # This is a limitation of the current BulkOperationsService
+        result = {
+            "success": False,
+            "message": "This type of bulk update is not supported",
+            "updated_count": 0,
+        }
+
+    # Invalidate caches
+    for task_id in bulk_update.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.put("/bulk/status", response_model=BulkOperationResponse)
+async def bulk_update_status(
+    bulk_status: BulkStatusUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk update task status
+    """
+    result = BulkOperationsService.update_status(
+        db, current_user.id, bulk_status.task_ids, bulk_status.status
+    )
+
+    # Invalidate caches
+    for task_id in bulk_status.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.put("/bulk/priority", response_model=BulkOperationResponse)
+async def bulk_update_priority(
+    bulk_priority: BulkPriorityUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk update task priority
+    """
+    result = BulkOperationsService.update_priority(
+        db, current_user.id, bulk_priority.task_ids, bulk_priority.priority
+    )
+
+    # Invalidate caches
+    for task_id in bulk_priority.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.put("/bulk/assign", response_model=BulkOperationResponse)
+async def bulk_assign_tasks(
+    bulk_assign: BulkAssignUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk assign tasks to a user
+    """
+    result = BulkOperationsService.update_assigned_to(
+        db, current_user.id, bulk_assign.task_ids, bulk_assign.assigned_to_id
+    )
+
+    # Invalidate caches
+    for task_id in bulk_assign.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.put("/bulk/project", response_model=BulkOperationResponse)
+async def bulk_move_to_project(
+    bulk_move: BulkProjectMove,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk move tasks to a project
+    """
+    result = BulkOperationsService.move_to_project(
+        db, current_user.id, bulk_move.task_ids, bulk_move.project_id
+    )
+
+    # Invalidate caches
+    for task_id in bulk_move.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.post("/bulk/tags/add", response_model=BulkOperationResponse)
+async def bulk_add_tags(
+    bulk_tags: BulkTagUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk add tags to tasks
+    """
+    result = BulkOperationsService.add_tags(
+        db, current_user.id, bulk_tags.task_ids, bulk_tags.tag_names
+    )
+
+    # Invalidate caches
+    for task_id in bulk_tags.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.post("/bulk/tags/remove", response_model=BulkOperationResponse)
+async def bulk_remove_tags(
+    bulk_tags: BulkTagUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk remove tags from tasks
+    """
+    result = BulkOperationsService.remove_tags(
+        db, current_user.id, bulk_tags.task_ids, bulk_tags.tag_names
+    )
+
+    # Invalidate caches
+    for task_id in bulk_tags.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.post("/bulk/categories/add", response_model=BulkOperationResponse)
+async def bulk_add_categories(
+    bulk_categories: BulkCategoryUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk add categories to tasks
+    """
+    result = BulkOperationsService.add_categories(
+        db, current_user.id, bulk_categories.task_ids, bulk_categories.category_ids
+    )
+
+    # Invalidate caches
+    for task_id in bulk_categories.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.post("/bulk/categories/remove", response_model=BulkOperationResponse)
+async def bulk_remove_categories(
+    bulk_categories: BulkCategoryUpdate,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk remove categories from tasks
+    """
+    result = BulkOperationsService.remove_categories(
+        db, current_user.id, bulk_categories.task_ids, bulk_categories.category_ids
+    )
+
+    # Invalidate caches
+    for task_id in bulk_categories.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    return BulkOperationResponse(**result)
+
+
+@router.delete("/bulk/delete", response_model=BulkOperationResponse)
+async def bulk_delete_tasks(
+    bulk_delete: BulkDeleteRequest,
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk delete tasks
+    """
+    result = BulkOperationsService.delete_tasks(
+        db, current_user.id, bulk_delete.task_ids
+    )
+
+    # Invalidate caches
+    for task_id in bulk_delete.task_ids:
+        invalidate_task_cache(task_id, current_user.id)
+    invalidate_user_cache(current_user.id)
+
+    # Transform the response to match BulkOperationResponse model
+    return BulkOperationResponse(
+        success=result["success"],
+        message=result["message"],
+        updated_count=result.get("deleted_count", 0),
+        inaccessible_count=result.get("inaccessible_count", 0),
+    )

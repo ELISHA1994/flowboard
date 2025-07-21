@@ -2,6 +2,7 @@
 Notification and reminder API endpoints.
 """
 
+import json
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -177,10 +178,10 @@ async def update_notification_preference(
     updated_preference = NotificationService.update_notification_preference(
         db,
         current_user.id,
-        preference.notification_type.value,
-        preference.channel.value,
+        preference.notification_type,
+        preference.channel,
         preference.enabled,
-        preference.frequency.value,
+        preference.frequency,
     )
 
     return updated_preference
@@ -332,7 +333,3 @@ async def process_pending_reminders(
     background_tasks.add_task(process_reminders)
 
     return {"message": "Processing reminders in background"}
-
-
-# Import json for parsing notification data
-import json

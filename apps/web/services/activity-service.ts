@@ -1,7 +1,7 @@
 /**
  * Frontend service for task activity tracking API interactions
  */
-import { AuthService } from '@/lib/auth';
+import { ApiClient } from '@/lib/api-client';
 
 export interface ActivityType {
   CREATED: 'created';
@@ -106,27 +106,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export class ActivityService {
   private static async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
     const url = `${API_BASE_URL}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
+    return ApiClient.fetchJSON<T>(url, options);
   }
 
   /**

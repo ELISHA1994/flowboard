@@ -13,7 +13,8 @@ from app.db.database import get_db
 from app.db.models import ProjectInvitation, ProjectRole, User
 from app.models.project import (ProjectCreate, ProjectDetailResponse,
                                 ProjectInvitationCreate,
-                                ProjectInvitationResponse, ProjectMemberUpdate,
+                                ProjectInvitationResponse, ProjectMemberAdd,
+                                ProjectMemberResponse, ProjectMemberUpdate,
                                 ProjectResponse, ProjectUpdate)
 from app.services.project_service import ProjectService
 
@@ -57,6 +58,47 @@ def get_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     return ProjectService.to_detail_response(project, current_user.id, db)
+
+
+@router.get("/{project_id}/members", response_model=List[ProjectMemberResponse])
+def list_project_members(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List project members"""
+    project = ProjectService.get_project_by_id(db, project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Return only the members from the detail response
+    detail_response = ProjectService.to_detail_response(project, current_user.id, db)
+    return detail_response.members
+
+
+@router.post("/{project_id}/members", response_model=dict)
+def add_project_member_via_body(
+    project_id: str,
+    member_data: ProjectMemberAdd,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add a member to the project using request body (requires ADMIN or OWNER role)"""
+    project = ProjectService.get_project_by_id(db, project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check permissions
+    if not project.has_permission(current_user.id, ProjectRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    try:
+        member = ProjectService.add_member(
+            db, project_id, member_data.user_id, member_data.role
+        )
+        return {"message": "Member added successfully", "member_id": member.id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)

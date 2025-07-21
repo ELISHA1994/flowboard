@@ -32,10 +32,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
+import { AlertCircle, Loader2, Trash2, FolderOpen } from 'lucide-react';
 import { Task, UpdateTaskRequest } from '@/lib/api/tasks';
 import { useUpdateTaskMutation, useDeleteTaskMutation } from '@/hooks/use-tasks-query';
 import { format, parseISO } from 'date-fns';
+import { Project, ProjectsService } from '@/lib/api/projects';
+import { Category, CategoriesService } from '@/lib/api/categories';
+import { Tag, TagsService } from '@/lib/api/tags';
+import { useCategoriesQuery } from '@/hooks/use-categories-query';
+import { useTagsQuery } from '@/hooks/use-tags-query';
+import { Badge } from '@/components/ui/badge';
+import { Hash, Folder } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { TaskReminders } from './task-reminders';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface EditTaskModalProps {
   open: boolean;
@@ -49,6 +61,18 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
   const updateTaskMutation = useUpdateTaskMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+
+  // Fetch categories and tags
+  const { data: categories = [] } = useCategoriesQuery();
+  const { data: tags = [] } = useTagsQuery();
+
+  // State for selected categories and tags
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
 
   const [formData, setFormData] = useState<UpdateTaskRequest>({
     title: '',
@@ -58,7 +82,29 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
     due_date: '',
     start_date: '',
     estimated_hours: undefined,
+    project_id: undefined,
+    category_ids: [],
+    tag_ids: [],
   });
+
+  // Fetch projects when modal opens
+  useEffect(() => {
+    if (open) {
+      fetchProjects();
+    }
+  }, [open]);
+
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const projectList = await ProjectsService.getProjects();
+      setProjects(projectList);
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
 
   // Update form data when task changes
   useEffect(() => {
@@ -71,7 +117,14 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
         due_date: task.due_date ? format(parseISO(task.due_date), 'yyyy-MM-dd') : '',
         start_date: task.start_date ? format(parseISO(task.start_date), 'yyyy-MM-dd') : '',
         estimated_hours: task.estimated_hours,
+        project_id: task.project_id,
+        category_ids: task.categories?.map((c) => c.id) || [],
+        tag_ids: task.tags?.map((t) => t.id) || [],
       });
+
+      // Update selected categories and tags
+      setSelectedCategories(task.categories?.map((c) => c.id) || []);
+      setSelectedTags(task.tags?.map((t) => t.id) || []);
     }
   }, [task]);
 
@@ -91,6 +144,8 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
       due_date: formData.due_date || undefined,
       start_date: formData.start_date || undefined,
       estimated_hours: formData.estimated_hours || undefined,
+      category_ids: selectedCategories,
+      tag_ids: selectedTags,
     };
 
     updateTaskMutation.mutate(
@@ -197,6 +252,230 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
               />
             </div>
 
+            <div className="grid gap-2">
+              <Label htmlFor="project">Project</Label>
+              <Select
+                value={formData.project_id || 'no-project'}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    project_id: value === 'no-project' ? undefined : value,
+                  })
+                }
+                disabled={
+                  updateTaskMutation.isPending || deleteTaskMutation.isPending || loadingProjects
+                }
+              >
+                <SelectTrigger id="project">
+                  <SelectValue placeholder="Select a project (optional)">
+                    {formData.project_id && (
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          style={{
+                            backgroundColor:
+                              projects.find((p) => p.id === formData.project_id)?.color ||
+                              '#6366f1',
+                          }}
+                        />
+                        {projects.find((p) => p.id === formData.project_id)?.name}
+                      </div>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-project">
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                      No Project
+                    </div>
+                  </SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: project.color || '#6366f1' }}
+                        />
+                        {project.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Categories</Label>
+              <Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
+                  >
+                    {selectedCategories.length > 0 ? (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {selectedCategories.slice(0, 2).map((categoryId) => {
+                          const category = categories.find((c) => c.id === categoryId);
+                          if (!category) return null;
+                          return (
+                            <Badge
+                              key={categoryId}
+                              variant="secondary"
+                              className="mr-1"
+                              style={{
+                                backgroundColor:
+                                  CategoriesService.formatCategoryColor(category.color) + '20',
+                                color: CategoriesService.formatCategoryColor(category.color),
+                              }}
+                            >
+                              {CategoriesService.formatCategoryIcon(category.icon)} {category.name}
+                            </Badge>
+                          );
+                        })}
+                        {selectedCategories.length > 2 && (
+                          <span className="text-muted-foreground text-sm">
+                            +{selectedCategories.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Select categories</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <div className="p-2 border-b">
+                    <p className="text-sm font-medium">Select Categories</p>
+                  </div>
+                  <ScrollArea className="h-[200px]">
+                    {categories.map((category) => (
+                      <div
+                        key={category.id}
+                        className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent"
+                      >
+                        <Checkbox
+                          id={`category-${category.id}`}
+                          checked={selectedCategories.includes(category.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedCategories([...selectedCategories, category.id]);
+                            } else {
+                              setSelectedCategories(
+                                selectedCategories.filter((id) => id !== category.id)
+                              );
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`category-${category.id}`}
+                          className="flex items-center gap-2 flex-1 cursor-pointer"
+                        >
+                          <div
+                            className="h-6 w-6 rounded flex items-center justify-center text-xs"
+                            style={{
+                              backgroundColor:
+                                CategoriesService.formatCategoryColor(category.color) + '20',
+                              color: CategoriesService.formatCategoryColor(category.color),
+                            }}
+                          >
+                            {CategoriesService.formatCategoryIcon(category.icon)}
+                          </div>
+                          <span className="text-sm">{category.name}</span>
+                        </label>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Tags</Label>
+              <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
+                  >
+                    {selectedTags.length > 0 ? (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {selectedTags.slice(0, 3).map((tagId) => {
+                          const tag = tags.find((t) => t.id === tagId);
+                          if (!tag) return null;
+                          return (
+                            <Badge
+                              key={tagId}
+                              variant="secondary"
+                              className="mr-1"
+                              style={{
+                                backgroundColor: TagsService.formatTagColor(tag.color) + '20',
+                                color: TagsService.formatTagColor(tag.color),
+                              }}
+                            >
+                              <Hash className="h-3 w-3 mr-1" />
+                              {tag.name}
+                            </Badge>
+                          );
+                        })}
+                        {selectedTags.length > 3 && (
+                          <span className="text-muted-foreground text-sm">
+                            +{selectedTags.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Select tags</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <div className="p-2 border-b">
+                    <p className="text-sm font-medium">Select Tags</p>
+                  </div>
+                  <ScrollArea className="h-[200px]">
+                    {tags.map((tag) => (
+                      <div
+                        key={tag.id}
+                        className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent"
+                      >
+                        <Checkbox
+                          id={`tag-${tag.id}`}
+                          checked={selectedTags.includes(tag.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTags([...selectedTags, tag.id]);
+                            } else {
+                              setSelectedTags(selectedTags.filter((id) => id !== tag.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`tag-${tag.id}`}
+                          className="flex items-center gap-2 flex-1 cursor-pointer"
+                        >
+                          <Badge
+                            variant="outline"
+                            className="text-xs"
+                            style={{
+                              backgroundColor: TagsService.formatTagColor(tag.color) + '20',
+                              color: TagsService.formatTagColor(tag.color),
+                              borderColor: TagsService.formatTagColor(tag.color),
+                            }}
+                          >
+                            <Hash className="h-3 w-3 mr-1" />
+                            {tag.name}
+                          </Badge>
+                        </label>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="status">Status</Label>
@@ -279,6 +558,9 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
               />
             </div>
           </div>
+
+          {/* Reminders Section */}
+          <TaskReminders task={task} className="mt-6" />
 
           <DialogFooter className="flex sm:justify-between">
             <Button

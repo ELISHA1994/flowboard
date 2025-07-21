@@ -250,5 +250,71 @@ class TaskShareResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Bulk operations models
+class BulkTaskUpdate(BaseModel):
+    """Model for bulk task update request"""
+
+    task_ids: List[str]
+    updates: TaskUpdate
+
+
+class BulkStatusUpdate(BaseModel):
+    """Model for bulk status update"""
+
+    task_ids: List[str]
+    status: TaskStatus
+
+
+class BulkPriorityUpdate(BaseModel):
+    """Model for bulk priority update"""
+
+    task_ids: List[str]
+    priority: TaskPriority
+
+
+class BulkAssignUpdate(BaseModel):
+    """Model for bulk assignment update"""
+
+    task_ids: List[str]
+    assigned_to_id: Optional[str] = None
+
+
+class BulkProjectMove(BaseModel):
+    """Model for bulk project move"""
+
+    task_ids: List[str]
+    project_id: str
+
+
+class BulkTagUpdate(BaseModel):
+    """Model for bulk tag update"""
+
+    task_ids: List[str]
+    tag_names: List[str]
+
+
+class BulkCategoryUpdate(BaseModel):
+    """Model for bulk category update"""
+
+    task_ids: List[str]
+    category_ids: List[str]
+
+
+class BulkDeleteRequest(BaseModel):
+    """Model for bulk delete request"""
+
+    task_ids: List[str]
+
+
+class BulkOperationResponse(BaseModel):
+    """Model for bulk operation response"""
+
+    success: bool
+    message: str
+    updated_count: int
+    inaccessible_count: Optional[int] = 0
+    skipped_count: Optional[int] = 0
+
+
 # Update forward references for recursive models
 TaskResponse.model_rebuild()

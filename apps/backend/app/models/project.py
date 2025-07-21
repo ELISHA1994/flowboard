@@ -127,6 +127,15 @@ class ProjectMemberUpdate(BaseModel):
     role: ProjectRole = Field(..., description="New role for the member")
 
 
+class ProjectMemberAdd(BaseModel):
+    """Model for adding a project member"""
+
+    user_id: str = Field(..., description="User ID to add to the project")
+    role: ProjectRole = Field(
+        ProjectRole.MEMBER, description="Role to assign to the member"
+    )
+
+
 class ProjectTasksFilter(BaseModel):
     """Filter options for project tasks"""
 

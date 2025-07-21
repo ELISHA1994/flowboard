@@ -931,7 +931,7 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
   - Query params: `?status=todo|in_progress|done&priority=low|medium|high|urgent&assigned_to_id=string&project_id=string&skip=0&limit=10`
 - `POST /tasks` - Create a new task
   - Body: `{"title": "string", "description": "string", "status": "todo", "priority": "medium", "assigned_to_id": "string"}`
-- `GET /tasks/{task_id}` - Get specific task
+- `GET /tasks/{task_id}` - Get a specific task
 - `PUT /tasks/{task_id}` - Update task
   - Body: `{"title": "string", "description": "string", "status": "string", "assigned_to_id": "string"}`
 - `DELETE /tasks/{task_id}` - Delete task

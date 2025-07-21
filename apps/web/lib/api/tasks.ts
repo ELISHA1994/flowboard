@@ -1,4 +1,5 @@
 import { AuthService } from '@/lib/auth';
+import { ApiClient } from '@/lib/api-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -105,26 +106,7 @@ export interface UpdateTaskRequest extends Partial<CreateTaskRequest> {
 
 export class TasksService {
   private static async fetchWithAuth(url: string, options: RequestInit = {}) {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(error.detail || `Request failed with status ${response.status}`);
-    }
-
-    return response.json();
+    return ApiClient.fetchJSON(url, options);
   }
 
   static async getTasks(params?: {
@@ -132,6 +114,8 @@ export class TasksService {
     priority?: string;
     assigned_to_id?: string;
     project_id?: string;
+    category_ids?: string[];
+    tag_ids?: string[];
     sort_by?: string;
     skip?: number;
     limit?: number;
@@ -148,7 +132,13 @@ export class TasksService {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
           const mappedKey = fieldMapping[key] || key;
-          queryParams.append(mappedKey, value.toString());
+
+          // Handle arrays for category_ids and tag_ids
+          if ((key === 'category_ids' || key === 'tag_ids') && Array.isArray(value)) {
+            value.forEach((id) => queryParams.append(mappedKey, id));
+          } else {
+            queryParams.append(mappedKey, value.toString());
+          }
         }
       });
     }
@@ -186,24 +176,9 @@ export class TasksService {
   }
 
   static async deleteTask(taskId: string): Promise<void> {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+    await ApiClient.fetchJSON(`${API_BASE_URL}/tasks/${taskId}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Delete failed' }));
-      throw new Error(error.detail || `Delete failed with status ${response.status}`);
-    }
-
-    // DELETE typically returns 204 No Content, don't try to parse JSON
   }
 
   static async getStatistics(params?: {
@@ -255,5 +230,24 @@ export class TasksService {
         const dateB = new Date(b.due_date!);
         return dateA.getTime() - dateB.getTime();
       });
+  }
+
+  static async bulkUpdateTasks(taskIds: string[], updates: UpdateTaskRequest): Promise<void> {
+    return this.fetchWithAuth(`${API_BASE_URL}/tasks/bulk/update`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        task_ids: taskIds,
+        updates,
+      }),
+    });
+  }
+
+  static async bulkDeleteTasks(taskIds: string[]): Promise<void> {
+    await ApiClient.fetchJSON(`${API_BASE_URL}/tasks/bulk/delete`, {
+      method: 'DELETE',
+      body: JSON.stringify({
+        task_ids: taskIds,
+      }),
+    });
   }
 }

@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { TasksService, Task, TaskStatistics, CreateTaskDto, UpdateTaskDto } from '@/lib/api/tasks';
+import {
+  TasksService,
+  Task,
+  TaskStatistics,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+} from '@/lib/api/tasks';
 import { useToastContext } from '@/contexts/toast-context';
 
 // Query keys for cache management
@@ -67,7 +73,7 @@ export function useCreateTaskMutation() {
   const { toast } = useToastContext();
 
   return useMutation({
-    mutationFn: (data: CreateTaskDto) => TasksService.createTask(data),
+    mutationFn: (data: CreateTaskRequest) => TasksService.createTask(data),
     onMutate: async (newTask) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: taskKeys.lists() });
@@ -140,7 +146,7 @@ export function useUpdateTaskMutation() {
   const { toast } = useToastContext();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTaskDto }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateTaskRequest }) =>
       TasksService.updateTask(id, data),
     onMutate: async ({ id, data }) => {
       // Cancel any outgoing refetches
@@ -257,7 +263,7 @@ export function useBulkUpdateTasksMutation() {
   const { toast } = useToastContext();
 
   return useMutation({
-    mutationFn: ({ ids, data }: { ids: string[]; data: UpdateTaskDto }) =>
+    mutationFn: ({ ids, data }: { ids: string[]; data: UpdateTaskRequest }) =>
       TasksService.bulkUpdateTasks(ids, data),
     onSuccess: () => {
       // Invalidate all task queries to ensure consistency

@@ -1,4 +1,5 @@
 import { DashboardLayout } from '@/components/layouts/dashboard-layout';
+import { ReminderSettings } from '@/components/settings/reminder-settings';
 
 export default function SettingsPage() {
   return (
@@ -7,12 +8,7 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between space-y-2">
           <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
         </div>
-        <div className="rounded-lg border bg-card p-8">
-          <p className="text-muted-foreground">
-            Settings page coming soon. This will allow you to configure your account and
-            preferences.
-          </p>
-        </div>
+        <ReminderSettings />
       </div>
     </DashboardLayout>
   );

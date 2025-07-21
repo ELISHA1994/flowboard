@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -43,14 +43,23 @@ import {
   List,
   Kanban,
   CalendarDays,
+  FolderOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Task, TaskStatus, TaskPriority, CreateTaskRequest } from '@/lib/api/tasks';
+import { Project, ProjectsService } from '@/lib/api/projects';
+import { Category, CategoriesService } from '@/lib/api/categories';
+import { Tag, TagsService } from '@/lib/api/tags';
 import { CreateTaskModal } from '@/components/tasks/create-task-modal';
 import { TaskCalendar } from '@/components/tasks/task-calendar';
 import { DashboardLayout } from '@/components/layouts/dashboard-layout';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useCategoriesQuery } from '@/hooks/use-categories-query';
+import { useTagsQuery } from '@/hooks/use-tags-query';
+import { Hash, Folder } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   useTasksQuery,
   useBulkUpdateTasksMutation,
@@ -60,40 +69,133 @@ import {
 } from '@/hooks/use-tasks-query';
 import { EditTaskModal } from '@/components/tasks/edit-task-modal';
 import { ShareTaskModal } from '@/components/tasks/share-task-modal';
+import { AdvancedFiltersModal, AdvancedFilters } from '@/components/tasks/advanced-filters-modal';
+import { SavedSearches } from '@/components/tasks/saved-searches';
+import { BulkOperationsModal, BulkOperation } from '@/components/tasks/bulk-operations-modal';
 
 type ViewMode = 'list' | 'board' | 'calendar';
 
 export default function TasksPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
+  const [projectFilter, setProjectFilter] = useState<string | 'all'>('all');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sortBy, setSortBy] = useState<string>('position');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [taskToShare, setTaskToShare] = useState<Task | null>(null);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [bulkOperationsOpen, setBulkOperationsOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    searchQuery: '',
+    status: 'all',
+    priority: 'all',
+    projectId: 'all',
+    categoryIds: [],
+    tagIds: [],
+    assignedToId: 'all',
+    sortBy: 'created_at',
+    sortOrder: 'desc',
+  });
+
+  // Get project_id from URL params
+  const projectIdFromUrl = searchParams.get('project_id');
+
+  // Initialize project filter from URL
+  useEffect(() => {
+    if (projectIdFromUrl) {
+      setProjectFilter(projectIdFromUrl);
+    }
+  }, [projectIdFromUrl]);
+
+  // Keep advancedFilters in sync with individual filters
+  useEffect(() => {
+    setAdvancedFilters((prev) => ({
+      ...prev,
+      searchQuery: searchQuery,
+      status: statusFilter,
+      priority: priorityFilter,
+      projectId: projectFilter,
+      categoryIds: selectedCategories,
+      tagIds: selectedTags,
+      sortBy: sortBy,
+    }));
+  }, [
+    searchQuery,
+    statusFilter,
+    priorityFilter,
+    projectFilter,
+    selectedCategories,
+    selectedTags,
+    sortBy,
+  ]);
+
+  // Fetch projects for filtering
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        const projectList = await ProjectsService.getProjects();
+        setProjects(projectList);
+      } catch (error) {
+        console.error('Failed to fetch projects:', error);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+    fetchProjects();
+  }, []);
+
+  // Fetch categories and tags
+  const { data: categories = [] } = useCategoriesQuery();
+  const { data: tags = [] } = useTagsQuery();
 
   const bulkUpdateMutation = useBulkUpdateTasksMutation();
   const bulkDeleteMutation = useBulkDeleteTasksMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
   const createTaskMutation = useCreateTaskMutation();
 
+  // Create query params from current filter states to avoid infinite loops
+  const taskQueryParams = useMemo(
+    () => ({
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      priority: priorityFilter === 'all' ? undefined : priorityFilter,
+      project_id: projectFilter === 'all' ? undefined : projectFilter,
+      category_ids: selectedCategories?.length > 0 ? selectedCategories : undefined,
+      tag_ids: selectedTags?.length > 0 ? selectedTags : undefined,
+      sort_by: sortBy === 'position' ? 'created_at' : (sortBy as any),
+      limit: 100,
+    }),
+    [statusFilter, priorityFilter, projectFilter, selectedCategories, selectedTags, sortBy]
+  );
+
+  // Apply advanced filters
+  const handleApplyAdvancedFilters = (filters: AdvancedFilters) => {
+    setAdvancedFilters(filters);
+    setSearchQuery(filters.searchQuery || '');
+    setStatusFilter(filters.status || 'all');
+    setPriorityFilter(filters.priority || 'all');
+    setProjectFilter(filters.projectId || 'all');
+    setSelectedCategories(filters.categoryIds || []);
+    setSelectedTags(filters.tagIds || []);
+    setSortBy(filters.sortBy || 'created_at');
+  };
+
   // Fetch tasks using React Query
-  const {
-    data: tasksData,
-    isLoading,
-    error,
-  } = useTasksQuery({
-    status: statusFilter === 'all' ? undefined : statusFilter,
-    priority: priorityFilter === 'all' ? undefined : priorityFilter,
-    sort_by: sortBy === 'position' ? 'created_at' : (sortBy as any),
-    limit: 100,
-  });
+  const { data: tasksData, isLoading, error } = useTasksQuery(taskQueryParams);
 
   const tasks = tasksData?.tasks || [];
 
@@ -115,8 +217,10 @@ export default function TasksPage() {
       // Exclude subtasks - only show parent tasks in main list
       !task.parent_task_id &&
       // Apply search filter
-      (task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        task.description?.toLowerCase().includes(searchQuery.toLowerCase()))
+      (advancedFilters.searchQuery
+        ? task.title.toLowerCase().includes(advancedFilters.searchQuery.toLowerCase()) ||
+          task.description?.toLowerCase().includes(advancedFilters.searchQuery.toLowerCase())
+        : true)
   );
 
   // Handle task selection
@@ -143,6 +247,26 @@ export default function TasksPage() {
         setSelectedTasks([]);
       },
     });
+  };
+
+  const handleBulkOperations = (operations: BulkOperation[]) => {
+    if (selectedTasks.length === 0 || operations.length === 0) return;
+
+    // Convert operations to UpdateTaskRequest
+    const updateData: any = {};
+    operations.forEach((op) => {
+      updateData[op.field] = op.value;
+    });
+
+    bulkUpdateMutation.mutate(
+      { ids: selectedTasks, data: updateData },
+      {
+        onSuccess: () => {
+          setSelectedTasks([]);
+          setBulkOperationsOpen(false);
+        },
+      }
+    );
   };
 
   // Get status icon
@@ -209,19 +333,70 @@ export default function TasksPage() {
               </div>
 
               {/* Filters */}
+              <Button variant="outline" size="sm" onClick={() => setAdvancedFiltersOpen(true)}>
+                <Filter className="mr-2 h-4 w-4" />
+                Advanced Filters
+                {(() => {
+                  let count = 0;
+                  if (advancedFilters.searchQuery) count++;
+                  if (advancedFilters.status && advancedFilters.status !== 'all') count++;
+                  if (advancedFilters.priority && advancedFilters.priority !== 'all') count++;
+                  if (advancedFilters.projectId && advancedFilters.projectId !== 'all') count++;
+                  if (advancedFilters.categoryIds && advancedFilters.categoryIds.length > 0)
+                    count++;
+                  if (advancedFilters.tagIds && advancedFilters.tagIds.length > 0) count++;
+                  if (advancedFilters.assignedToId && advancedFilters.assignedToId !== 'all')
+                    count++;
+                  if (advancedFilters.dueDateFrom || advancedFilters.dueDateTo) count++;
+                  if (advancedFilters.createdDateFrom || advancedFilters.createdDateTo) count++;
+                  return (
+                    count > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {count}
+                      </Badge>
+                    )
+                  );
+                })()}
+              </Button>
+
+              {/* Saved Searches */}
+              <SavedSearches
+                onApplySearch={handleApplyAdvancedFilters}
+                currentFilters={advancedFilters}
+              />
+
+              {/* Quick Filters */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
-                    <Filter className="mr-2 h-4 w-4" />
-                    Filters
-                    {(statusFilter !== 'all' || priorityFilter !== 'all') && (
-                      <Badge variant="secondary" className="ml-2">
-                        {[statusFilter !== 'all', priorityFilter !== 'all'].filter(Boolean).length}
-                      </Badge>
-                    )}
+                    <ChevronDown className="mr-2 h-4 w-4" />
+                    Quick Filters
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Project</DropdownMenuLabel>
+                  <DropdownMenuCheckboxItem
+                    checked={projectFilter === 'all'}
+                    onCheckedChange={() => setProjectFilter('all')}
+                  >
+                    All Projects
+                  </DropdownMenuCheckboxItem>
+                  {projects.map((project) => (
+                    <DropdownMenuCheckboxItem
+                      key={project.id}
+                      checked={projectFilter === project.id}
+                      onCheckedChange={() => setProjectFilter(project.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          style={{ backgroundColor: project.color || '#6366f1' }}
+                        />
+                        {project.name}
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
                   <DropdownMenuLabel>Status</DropdownMenuLabel>
                   <DropdownMenuCheckboxItem
                     checked={statusFilter === 'all'}
@@ -257,6 +432,153 @@ export default function TasksPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Category Filter */}
+              <Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Folder className="mr-2 h-4 w-4" />
+                    Categories
+                    {selectedCategories.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {selectedCategories.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-0" align="start">
+                  <div className="p-2 border-b">
+                    <p className="text-sm font-medium">Filter by Categories</p>
+                  </div>
+                  <ScrollArea className="h-[200px]">
+                    {categories.map((category) => (
+                      <div
+                        key={category.id}
+                        className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent cursor-pointer"
+                        onClick={() => {
+                          if (selectedCategories.includes(category.id)) {
+                            setSelectedCategories(
+                              selectedCategories.filter((id) => id !== category.id)
+                            );
+                          } else {
+                            setSelectedCategories([...selectedCategories, category.id]);
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedCategories.includes(category.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedCategories([...selectedCategories, category.id]);
+                            } else {
+                              setSelectedCategories(
+                                selectedCategories.filter((id) => id !== category.id)
+                              );
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex items-center gap-2 flex-1">
+                          <div
+                            className="h-6 w-6 rounded flex items-center justify-center text-xs"
+                            style={{
+                              backgroundColor:
+                                CategoriesService.formatCategoryColor(category.color) + '20',
+                              color: CategoriesService.formatCategoryColor(category.color),
+                            }}
+                          >
+                            {CategoriesService.formatCategoryIcon(category.icon)}
+                          </div>
+                          <span className="text-sm">{category.name}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                  {selectedCategories.length > 0 && (
+                    <div className="p-2 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setSelectedCategories([])}
+                      >
+                        Clear selection
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+
+              {/* Tag Filter */}
+              <Popover open={tagsOpen} onOpenChange={setTagsOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Hash className="mr-2 h-4 w-4" />
+                    Tags
+                    {selectedTags.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {selectedTags.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-0" align="start">
+                  <div className="p-2 border-b">
+                    <p className="text-sm font-medium">Filter by Tags</p>
+                  </div>
+                  <ScrollArea className="h-[200px]">
+                    {tags.map((tag) => (
+                      <div
+                        key={tag.id}
+                        className="flex items-center space-x-2 px-2 py-1.5 hover:bg-accent cursor-pointer"
+                        onClick={() => {
+                          if (selectedTags.includes(tag.id)) {
+                            setSelectedTags(selectedTags.filter((id) => id !== tag.id));
+                          } else {
+                            setSelectedTags([...selectedTags, tag.id]);
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedTags.includes(tag.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTags([...selectedTags, tag.id]);
+                            } else {
+                              setSelectedTags(selectedTags.filter((id) => id !== tag.id));
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Badge
+                          variant="outline"
+                          className="text-xs flex-1"
+                          style={{
+                            backgroundColor: TagsService.formatTagColor(tag.color) + '20',
+                            color: TagsService.formatTagColor(tag.color),
+                            borderColor: TagsService.formatTagColor(tag.color),
+                          }}
+                        >
+                          <Hash className="h-3 w-3 mr-1" />
+                          {tag.name}
+                        </Badge>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                  {selectedTags.length > 0 && (
+                    <div className="p-2 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setSelectedTags([])}
+                      >
+                        Clear selection
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
 
               {/* Sort */}
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -306,14 +628,66 @@ export default function TasksPage() {
             <div className="mt-3 flex items-center gap-4">
               <span className="text-sm text-muted-foreground">{selectedTasks.length} selected</span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleBulkDelete}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                <Button variant="outline" size="sm" onClick={() => setBulkOperationsOpen(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit {selectedTasks.length} Task{selectedTasks.length !== 1 ? 's' : ''}
                 </Button>
-                <Button variant="outline" size="sm" disabled>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archive
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <MoreHorizontal className="mr-2 h-4 w-4" />
+                      More Actions
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleBulkOperations([
+                          { field: 'status', value: 'done', label: 'Status: Done' },
+                        ])
+                      }
+                    >
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Mark as Done
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleBulkOperations([
+                          { field: 'status', value: 'in_progress', label: 'Status: In Progress' },
+                        ])
+                      }
+                    >
+                      <Clock className="mr-2 h-4 w-4" />
+                      Mark as In Progress
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleBulkOperations([
+                          { field: 'priority', value: 'urgent', label: 'Priority: Urgent' },
+                        ])
+                      }
+                    >
+                      <Flag className="mr-2 h-4 w-4 text-red-600" />
+                      Set Priority to Urgent
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleBulkOperations([
+                          { field: 'priority', value: 'high', label: 'Priority: High' },
+                        ])
+                      }
+                    >
+                      <Flag className="mr-2 h-4 w-4 text-orange-600" />
+                      Set Priority to High
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleBulkDelete} className="text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Selected
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           )}
@@ -334,16 +708,26 @@ export default function TasksPage() {
                 <Circle className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-2 text-sm font-medium">No tasks found</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {searchQuery || statusFilter !== 'all' || priorityFilter !== 'all'
+                  {searchQuery ||
+                  statusFilter !== 'all' ||
+                  priorityFilter !== 'all' ||
+                  projectFilter !== 'all' ||
+                  selectedCategories.length > 0 ||
+                  selectedTags.length > 0
                     ? 'Try adjusting your filters'
                     : 'Get started by creating a new task'}
                 </p>
-                {!searchQuery && statusFilter === 'all' && priorityFilter === 'all' && (
-                  <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Task
-                  </Button>
-                )}
+                {!searchQuery &&
+                  statusFilter === 'all' &&
+                  priorityFilter === 'all' &&
+                  projectFilter === 'all' &&
+                  selectedCategories.length === 0 &&
+                  selectedTags.length === 0 && (
+                    <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Task
+                    </Button>
+                  )}
               </div>
             </div>
           ) : viewMode === 'list' ? (
@@ -619,6 +1003,7 @@ export default function TasksPage() {
         <CreateTaskModal
           open={showCreateModal}
           onOpenChange={setShowCreateModal}
+          defaultProjectId={projectFilter !== 'all' ? projectFilter : undefined}
           onTaskCreated={() => {
             // React Query will automatically refetch
             setShowCreateModal(false);
@@ -638,6 +1023,30 @@ export default function TasksPage() {
 
         {/* Share Task Modal */}
         <ShareTaskModal open={shareModalOpen} onOpenChange={setShareModalOpen} task={taskToShare} />
+
+        {/* Advanced Filters Modal */}
+        <AdvancedFiltersModal
+          open={advancedFiltersOpen}
+          onOpenChange={setAdvancedFiltersOpen}
+          filters={advancedFilters}
+          onApplyFilters={handleApplyAdvancedFilters}
+          projects={projects}
+          categories={categories}
+          tags={tags}
+          users={[]} // TODO: Add users list when user management is implemented
+        />
+
+        {/* Bulk Operations Modal */}
+        <BulkOperationsModal
+          open={bulkOperationsOpen}
+          onOpenChange={setBulkOperationsOpen}
+          selectedCount={selectedTasks.length}
+          onApplyOperations={handleBulkOperations}
+          projects={projects}
+          categories={categories}
+          tags={tags}
+          users={[]} // TODO: Add users list when user management is implemented
+        />
       </div>
     </DashboardLayout>
   );
