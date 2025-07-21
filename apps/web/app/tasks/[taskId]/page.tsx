@@ -52,6 +52,11 @@ import { CommentsService, Comment } from '@/lib/api/comments';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
+import { TaskAttachments } from '@/components/tasks/task-attachments';
+import { TaskActivity } from '@/components/tasks/task-activity';
+import { TimeTracking } from '@/components/tasks/time-tracking';
+import { Subtasks } from '@/components/tasks/subtasks';
+import { TaskDependencies } from '@/components/tasks/task-dependencies';
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -385,6 +390,11 @@ export default function TaskDetailPage() {
               )}
             </div>
 
+            {/* Subtasks */}
+            <div className="mb-8">
+              <Subtasks parentTask={task} onUpdate={fetchTask} />
+            </div>
+
             {/* Metadata */}
             <div className="mb-8 grid grid-cols-2 gap-6">
               <div>
@@ -563,15 +573,11 @@ export default function TaskDetailPage() {
               </TabsContent>
 
               <TabsContent value="attachments" className="mt-6">
-                <p className="text-center text-sm text-muted-foreground">
-                  Attachments feature coming soon
-                </p>
+                <TaskAttachments taskId={taskId} canEdit={true} />
               </TabsContent>
 
               <TabsContent value="activity" className="mt-6">
-                <p className="text-center text-sm text-muted-foreground">
-                  Activity log coming soon
-                </p>
+                <TaskActivity taskId={taskId} task={task} />
               </TabsContent>
             </Tabs>
           </div>
@@ -637,6 +643,13 @@ export default function TaskDetailPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Time Tracking */}
+          <Separator className="my-4" />
+          <div>
+            <h3 className="mb-4 text-sm font-medium">Time Tracking</h3>
+            <TimeTracking task={task} onTimeLogged={fetchTask} />
           </div>
         </div>
       </div>

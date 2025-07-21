@@ -1,14 +1,16 @@
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+
 import bcrypt
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+
 from app.db.database import get_db
 from app.db.models import User
-import os
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -25,19 +27,23 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     # Convert strings to bytes
-    plain_password_bytes = plain_password.encode('utf-8')
-    hashed_password_bytes = hashed_password.encode('utf-8') if isinstance(hashed_password, str) else hashed_password
+    plain_password_bytes = plain_password.encode("utf-8")
+    hashed_password_bytes = (
+        hashed_password.encode("utf-8")
+        if isinstance(hashed_password, str)
+        else hashed_password
+    )
     return bcrypt.checkpw(plain_password_bytes, hashed_password_bytes)
 
 
 def get_password_hash(password: str) -> str:
     """Generate password hash"""
     # Generate salt and hash the password
-    password_bytes = password.encode('utf-8')
+    password_bytes = password.encode("utf-8")
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password_bytes, salt)
     # Return as string for storage
-    return hashed.decode('utf-8')
+    return hashed.decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -47,7 +53,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -66,8 +72,7 @@ def verify_token(token: str) -> Optional[str]:
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme), 
-    db: Session = Depends(get_db)
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> User:
     """Get current authenticated user"""
     credentials_exception = HTTPException(
@@ -75,20 +80,20 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     username = verify_token(token)
     if username is None:
         raise credentials_exception
-    
+
     user = db.query(User).filter(User.username == username).first()
     if user is None:
         raise credentials_exception
-    
+
     return user
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """Get current active user"""
     if not current_user.is_active:

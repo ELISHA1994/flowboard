@@ -15,12 +15,14 @@ from app.main import app
 def generate_openapi_schema():
     """Generate OpenAPI schema and save to file"""
     schema = app.openapi()
-    
+
     # Save to file
-    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'openapi.json')
-    with open(output_path, 'w') as f:
+    output_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "openapi.json"
+    )
+    with open(output_path, "w") as f:
         json.dump(schema, f, indent=2)
-    
+
     print(f"OpenAPI schema generated at: {output_path}")
     return schema
 

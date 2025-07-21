@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { TasksService, CreateTaskRequest } from '@/lib/api/tasks';
+import { CreateTaskRequest } from '@/lib/api/tasks';
+import { useCreateTaskMutation } from '@/hooks/use-tasks-query';
 import { format } from 'date-fns';
 
 interface CreateTaskModalProps {
@@ -34,8 +35,7 @@ interface CreateTaskModalProps {
 
 export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTaskModalProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const createTaskMutation = useCreateTaskMutation();
 
   const [formData, setFormData] = useState<CreateTaskRequest>({
     title: '',
@@ -51,51 +51,40 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
     e.preventDefault();
 
     if (!formData.title.trim()) {
-      setError('Task title is required');
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    // Prepare the data - convert empty strings to undefined
+    const taskData: CreateTaskRequest = {
+      ...formData,
+      description: formData.description || undefined,
+      due_date: formData.due_date || undefined,
+      start_date: formData.start_date || undefined,
+      estimated_hours: formData.estimated_hours || undefined,
+    };
 
-    try {
-      // Prepare the data - convert empty strings to undefined
-      const taskData: CreateTaskRequest = {
-        ...formData,
-        description: formData.description || undefined,
-        due_date: formData.due_date || undefined,
-        start_date: formData.start_date || undefined,
-        estimated_hours: formData.estimated_hours || undefined,
-      };
+    createTaskMutation.mutate(taskData, {
+      onSuccess: () => {
+        // Reset form
+        setFormData({
+          title: '',
+          description: '',
+          status: 'todo',
+          priority: 'medium',
+          due_date: '',
+          start_date: '',
+          estimated_hours: undefined,
+        });
 
-      await TasksService.createTask(taskData);
+        // Close modal
+        onOpenChange(false);
 
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        status: 'todo',
-        priority: 'medium',
-        due_date: '',
-        start_date: '',
-        estimated_hours: undefined,
-      });
-
-      // Close modal
-      onOpenChange(false);
-
-      // Notify parent component
-      if (onTaskCreated) {
-        onTaskCreated();
-      }
-
-      // Refresh the page to show the new task
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create task');
-    } finally {
-      setLoading(false);
-    }
+        // Notify parent component (optional now since React Query handles updates)
+        if (onTaskCreated) {
+          onTaskCreated();
+        }
+      },
+    });
   };
 
   return (
@@ -109,10 +98,14 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
             </DialogDescription>
           </DialogHeader>
 
-          {error && (
+          {createTaskMutation.error && (
             <Alert variant="destructive" className="mt-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {createTaskMutation.error instanceof Error
+                  ? createTaskMutation.error.message
+                  : 'Failed to create task'}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -124,7 +117,7 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
                 placeholder="Enter task title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                disabled={loading}
+                disabled={createTaskMutation.isPending}
                 required
               />
             </div>
@@ -136,7 +129,7 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
                 placeholder="Enter task description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                disabled={loading}
+                disabled={createTaskMutation.isPending}
                 rows={3}
               />
             </div>
@@ -147,7 +140,7 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
                 <Select
                   value={formData.status}
                   onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                  disabled={loading}
+                  disabled={createTaskMutation.isPending}
                 >
                   <SelectTrigger id="status">
                     <SelectValue />
@@ -165,7 +158,7 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
                 <Select
                   value={formData.priority}
                   onValueChange={(value) => setFormData({ ...formData, priority: value as any })}
-                  disabled={loading}
+                  disabled={createTaskMutation.isPending}
                 >
                   <SelectTrigger id="priority">
                     <SelectValue />
@@ -188,7 +181,7 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  disabled={loading}
+                  disabled={createTaskMutation.isPending}
                   min={format(new Date(), 'yyyy-MM-dd')}
                 />
               </div>
@@ -200,7 +193,7 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
                   type="date"
                   value={formData.due_date}
                   onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  disabled={loading}
+                  disabled={createTaskMutation.isPending}
                   min={format(new Date(), 'yyyy-MM-dd')}
                 />
               </div>
@@ -219,7 +212,7 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
                     estimated_hours: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                disabled={loading}
+                disabled={createTaskMutation.isPending}
                 min="0"
                 step="0.5"
               />
@@ -231,13 +224,13 @@ export function CreateTaskModal({ open, onOpenChange, onTaskCreated }: CreateTas
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={loading}
+              disabled={createTaskMutation.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {loading ? 'Creating...' : 'Create Task'}
+            <Button type="submit" disabled={createTaskMutation.isPending}>
+              {createTaskMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
             </Button>
           </DialogFooter>
         </form>

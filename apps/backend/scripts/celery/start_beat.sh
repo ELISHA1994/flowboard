@@ -12,6 +12,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Detect macOS
+IS_MACOS=false
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    IS_MACOS=true
+fi
+
 # Default values
 LOGLEVEL="info"
 PIDFILE=""
@@ -72,6 +78,13 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Apply macOS-specific settings
+if [[ "$IS_MACOS" == true ]]; then
+    # Set fork safety environment variable
+    export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    echo -e "${YELLOW}macOS detected: Fork safety has been disabled with OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES${NC}"
+fi
 
 # Check if we're in a virtual environment
 if [[ -z "$VIRTUAL_ENV" ]]; then
@@ -146,6 +159,9 @@ if [[ -n "$LOGFILE" ]]; then
     echo -e "  Log File: ${LOGFILE}"
 fi
 echo -e "  Detached: ${DETACH}"
+if [[ "$IS_MACOS" == true ]]; then
+    echo -e "  Environment: OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES"
+fi
 echo ""
 
 # Create directories for PID and log files if needed

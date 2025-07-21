@@ -1,17 +1,21 @@
 """
 API endpoints for project management
 """
+
 from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
+from app.core.middleware.jwt_auth_backend import \
+    get_current_active_user as get_current_user
 from app.db.database import get_db
-from app.db.models import User, ProjectRole, ProjectInvitation
-from app.core.middleware.jwt_auth_backend import get_current_active_user as get_current_user
+from app.db.models import ProjectInvitation, ProjectRole, User
+from app.models.project import (ProjectCreate, ProjectDetailResponse,
+                                ProjectInvitationCreate,
+                                ProjectInvitationResponse, ProjectMemberUpdate,
+                                ProjectResponse, ProjectUpdate)
 from app.services.project_service import ProjectService
-from app.models.project import (
-    ProjectCreate, ProjectUpdate, ProjectResponse, ProjectDetailResponse,
-    ProjectInvitationCreate, ProjectInvitationResponse, ProjectMemberUpdate
-)
 
 router = APIRouter()
 
@@ -20,7 +24,7 @@ router = APIRouter()
 def create_project(
     project: ProjectCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Create a new project"""
     try:
@@ -34,7 +38,7 @@ def create_project(
 def list_projects(
     include_inactive: bool = False,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """List all projects where user is owner or member"""
     projects = ProjectService.get_user_projects(db, current_user.id, include_inactive)
@@ -45,13 +49,13 @@ def list_projects(
 def get_project(
     project_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get project details"""
     project = ProjectService.get_project_by_id(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     return ProjectService.to_detail_response(project, current_user.id, db)
 
 
@@ -60,17 +64,17 @@ def update_project(
     project_id: str,
     project_update: ProjectUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update project details (requires ADMIN or OWNER role)"""
     project = ProjectService.get_project_by_id(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check permissions
     if not project.has_permission(current_user.id, ProjectRole.ADMIN):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     try:
         updated_project = ProjectService.update_project(db, project, project_update)
         return ProjectService.to_response(updated_project, current_user.id, db)
@@ -83,17 +87,19 @@ def delete_project(
     project_id: str,
     soft_delete: bool = True,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Delete a project (requires OWNER role)"""
     project = ProjectService.get_project_by_id(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Only owner can delete
     if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only project owner can delete the project")
-    
+        raise HTTPException(
+            status_code=403, detail="Only project owner can delete the project"
+        )
+
     if soft_delete:
         ProjectService.soft_delete_project(db, project)
     else:
@@ -106,17 +112,17 @@ def add_project_member(
     user_id: str,
     member_data: ProjectMemberUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Add a member to the project (requires ADMIN or OWNER role)"""
     project = ProjectService.get_project_by_id(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check permissions
     if not project.has_permission(current_user.id, ProjectRole.ADMIN):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     try:
         member = ProjectService.add_member(db, project_id, user_id, member_data.role)
         return {"message": "Member added successfully", "member_id": member.id}
@@ -130,53 +136,57 @@ def update_member_role(
     user_id: str,
     member_data: ProjectMemberUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update a member's role (requires ADMIN or OWNER role)"""
     project = ProjectService.get_project_by_id(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check permissions
     if not project.has_permission(current_user.id, ProjectRole.ADMIN):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     # Cannot change owner's role
     if user_id == project.owner_id:
         raise HTTPException(status_code=400, detail="Cannot change owner's role")
-    
+
     member = ProjectService.get_project_member(db, project_id, user_id)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
-    
+
     ProjectService.update_member_role(db, member, member_data.role)
     return {"message": "Member role updated successfully"}
 
 
-@router.delete("/{project_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{project_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def remove_project_member(
     project_id: str,
     user_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Remove a member from the project (requires ADMIN or OWNER role)"""
     project = ProjectService.get_project_by_id(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check permissions (members can remove themselves)
-    if user_id != current_user.id and not project.has_permission(current_user.id, ProjectRole.ADMIN):
+    if user_id != current_user.id and not project.has_permission(
+        current_user.id, ProjectRole.ADMIN
+    ):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     # Cannot remove owner
     if user_id == project.owner_id:
         raise HTTPException(status_code=400, detail="Cannot remove project owner")
-    
+
     member = ProjectService.get_project_member(db, project_id, user_id)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
-    
+
     ProjectService.remove_member(db, member)
 
 
@@ -185,22 +195,22 @@ def create_invitation(
     project_id: str,
     invitation: ProjectInvitationCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Create a project invitation (requires ADMIN or OWNER role)"""
     project = ProjectService.get_project_by_id(db, project_id, current_user.id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check permissions
     if not project.has_permission(current_user.id, ProjectRole.ADMIN):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     try:
         new_invitation = ProjectService.create_invitation(
             db, project_id, current_user.id, invitation
         )
-        
+
         return ProjectInvitationResponse(
             id=new_invitation.id,
             project_id=new_invitation.project_id,
@@ -210,7 +220,7 @@ def create_invitation(
             role=new_invitation.role,
             token=new_invitation.token,
             expires_at=new_invitation.expires_at,
-            created_at=new_invitation.created_at
+            created_at=new_invitation.created_at,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -220,22 +230,22 @@ def create_invitation(
 def accept_invitation(
     token: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Accept a project invitation"""
-    invitation = db.query(ProjectInvitation).filter(
-        ProjectInvitation.token == token
-    ).first()
-    
+    invitation = (
+        db.query(ProjectInvitation).filter(ProjectInvitation.token == token).first()
+    )
+
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
-    
+
     try:
         member = ProjectService.accept_invitation(db, invitation, current_user)
         return {
             "message": "Invitation accepted successfully",
             "project_id": invitation.project_id,
-            "role": member.role
+            "role": member.role,
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

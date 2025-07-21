@@ -1,14 +1,14 @@
+import time
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.main import api_router
-from app.core.exception_handlers import (
-    http_exception_handler,
-    general_exception_handler,
-)
+from app.core.exception_handlers import (general_exception_handler,
+                                         http_exception_handler)
+from app.core.logging import logger
 from app.db.database import engine
 from app.db.models import Base
-from app.core.logging import logger
-import time
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -30,18 +30,22 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+
 # Add request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
     logger.info(f"🔵 {request.method} {request.url.path}")
-    
+
     response = await call_next(request)
-    
+
     duration = time.time() - start_time
-    logger.info(f"✅ {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
-    
+    logger.info(
+        f"✅ {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s"
+    )
+
     return response
+
 
 # Register custom exception handlers
 app.add_exception_handler(HTTPException, http_exception_handler)
@@ -49,6 +53,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 
 # Include the API router
 app.include_router(api_router)
+
 
 # Health check endpoint
 @app.get("/health")

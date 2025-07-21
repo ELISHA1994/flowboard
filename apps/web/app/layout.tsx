@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ToastProvider } from '@/contexts/toast-context';
+import { QueryProvider } from '@/contexts/query-provider';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -27,7 +28,9 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <ThemeProvider defaultTheme="system" storageKey="taskmaster-theme">
           <AuthProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <QueryProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </QueryProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

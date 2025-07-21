@@ -1,14 +1,17 @@
 """
 Pydantic models for notification functionality.
 """
+
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NotificationTypeEnum(str, Enum):
     """Notification types."""
+
     TASK_DUE = "task_due"
     TASK_OVERDUE = "task_overdue"
     TASK_ASSIGNED = "task_assigned"
@@ -24,6 +27,7 @@ class NotificationTypeEnum(str, Enum):
 
 class NotificationChannelEnum(str, Enum):
     """Notification channels."""
+
     EMAIL = "email"
     IN_APP = "in_app"
     PUSH = "push"
@@ -31,6 +35,7 @@ class NotificationChannelEnum(str, Enum):
 
 class NotificationFrequencyEnum(str, Enum):
     """Notification frequencies."""
+
     IMMEDIATE = "immediate"
     DAILY_DIGEST = "daily_digest"
     WEEKLY_DIGEST = "weekly_digest"
@@ -38,6 +43,7 @@ class NotificationFrequencyEnum(str, Enum):
 
 class NotificationResponse(BaseModel):
     """Model for notification response."""
+
     id: str
     user_id: str
     type: str
@@ -47,25 +53,37 @@ class NotificationResponse(BaseModel):
     read: bool
     read_at: Optional[datetime]
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationMarkRead(BaseModel):
     """Model for marking notifications as read."""
-    notification_ids: List[str] = Field(..., min_length=1, description="List of notification IDs to mark as read")
+
+    notification_ids: List[str] = Field(
+        ..., min_length=1, description="List of notification IDs to mark as read"
+    )
 
 
 class NotificationPreferenceUpdate(BaseModel):
     """Model for updating notification preferences."""
-    notification_type: NotificationTypeEnum = Field(..., description="Type of notification")
+
+    notification_type: NotificationTypeEnum = Field(
+        ..., description="Type of notification"
+    )
     channel: NotificationChannelEnum = Field(..., description="Notification channel")
-    enabled: bool = Field(..., description="Whether this notification type/channel is enabled")
-    frequency: NotificationFrequencyEnum = Field(default=NotificationFrequencyEnum.IMMEDIATE, description="Notification frequency")
+    enabled: bool = Field(
+        ..., description="Whether this notification type/channel is enabled"
+    )
+    frequency: NotificationFrequencyEnum = Field(
+        default=NotificationFrequencyEnum.IMMEDIATE,
+        description="Notification frequency",
+    )
 
 
 class NotificationPreferenceResponse(BaseModel):
     """Model for notification preference response."""
+
     id: str
     user_id: str
     notification_type: str
@@ -74,25 +92,32 @@ class NotificationPreferenceResponse(BaseModel):
     frequency: str
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class TaskReminderCreate(BaseModel):
     """Model for creating a task reminder."""
+
     task_id: str = Field(..., description="Task ID to set reminder for")
     remind_at: datetime = Field(..., description="When to send the reminder")
-    message: Optional[str] = Field(None, max_length=500, description="Custom reminder message")
+    message: Optional[str] = Field(
+        None, max_length=500, description="Custom reminder message"
+    )
 
 
 class TaskReminderUpdate(BaseModel):
     """Model for updating a task reminder."""
+
     remind_at: Optional[datetime] = Field(None, description="New reminder time")
-    message: Optional[str] = Field(None, max_length=500, description="Updated reminder message")
+    message: Optional[str] = Field(
+        None, max_length=500, description="Updated reminder message"
+    )
 
 
 class TaskReminderResponse(BaseModel):
     """Model for task reminder response."""
+
     id: str
     task_id: str
     user_id: str
@@ -103,21 +128,25 @@ class TaskReminderResponse(BaseModel):
     sent: bool
     sent_at: Optional[datetime]
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class TaskDueDateRemindersCreate(BaseModel):
     """Model for creating due date reminders."""
+
     task_id: str = Field(..., description="Task ID to set reminders for")
     offset_minutes: List[int] = Field(
         default=[60, 1440],  # 1 hour, 1 day
-        description="Minutes before due date to send reminders"
+        description="Minutes before due date to send reminders",
     )
 
 
 class NotificationStats(BaseModel):
     """Model for notification statistics."""
+
     total: int = Field(..., description="Total number of notifications")
     unread: int = Field(..., description="Number of unread notifications")
-    by_type: Dict[str, int] = Field(default_factory=dict, description="Count by notification type")
+    by_type: Dict[str, int] = Field(
+        default_factory=dict, description="Count by notification type"
+    )

@@ -256,6 +256,11 @@ make lint              # Run Python linters
 make format            # Format Python code
 
 # Celery (Background Tasks) - also from apps/backend/
+# For macOS users - use the following commands to avoid fork safety issues:
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES  # Required for macOS
+celery -A app.core.celery_app:celery_app worker --loglevel=info --pool=solo  # Single process worker
+
+# OR use the provided scripts (also from apps/backend/):
 ./scripts/celery/start_all.sh    # Start all Celery components
 ./scripts/celery/start_worker.sh  # Start Celery worker only
 ./scripts/celery/start_beat.sh    # Start Celery beat scheduler
@@ -574,6 +579,24 @@ docker-compose exec backend alembic upgrade head
 ### Celery Setup (Background Job Processing)
 
 Celery is used for processing background tasks like sending notifications, processing recurring tasks, and generating analytics reports.
+
+#### macOS-Specific Setup
+
+If you're on macOS, you'll need to use special settings to avoid fork safety issues:
+
+```bash
+# Required environment variable for macOS
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+
+# Start Celery with solo pool (single process)
+cd apps/backend
+celery -A app.core.celery_app:celery_app worker --loglevel=info --pool=solo
+
+# For debugging, use debug log level
+celery -A app.core.celery_app:celery_app worker --loglevel=debug --pool=solo
+```
+
+#### Standard Setup (Linux/Windows/Docker)
 
 1. **Test Celery Configuration:**
 
@@ -1101,6 +1124,14 @@ When running with Docker (`pnpm docker:up` or `./setup.sh`):
 - **Comments System**: Add comments to tasks with threaded replies
 - **@Mentions**: Mention users in comments with automatic notification tracking
 - **File Attachments**: Upload and manage file attachments on tasks with size and type validation
+- **Activity Tracking**: Complete audit trail of all task modifications with user attribution
+  - Task creation, updates, and deletions
+  - Status and priority changes
+  - Assignment changes
+  - Comments and mentions
+  - File attachments
+  - Time logging
+  - All activities stored with timestamps and user information
 
 ### Advanced Search and Filtering
 
@@ -1306,11 +1337,48 @@ The following events are available for webhook subscriptions:
 1. **Environment Setup**: Always use a virtual environment to avoid dependency conflicts
 2. **Database Migrations**: Run `alembic upgrade head` after pulling changes
 3. **Background Tasks**: Start Celery workers when testing features that use background processing
+   - macOS users: Use `--pool=solo` to avoid fork safety issues
+   - Set `export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` before starting workers
 4. **Redis Required**: Many features require Redis, ensure it's running
 5. **Test Data**: Use the factory classes in `tests/factories/` to generate test data
 6. **API Testing**: Use the Swagger UI at `/docs` for interactive API testing
 7. **Logging**: Check `app.log` for detailed application logs
 8. **Performance**: Use Redis caching for frequently accessed data
+
+### Troubleshooting Activity Tracking
+
+If activities are not being logged:
+
+1. **Check Celery Workers**: Ensure Celery workers are running
+
+   ```bash
+   ps aux | grep celery
+   ```
+
+2. **Check Redis**: Verify Redis is running and accessible
+
+   ```bash
+   redis-cli ping  # Should return PONG
+   ```
+
+3. **Check Database**: Verify the task_activities table exists
+
+   ```bash
+   cd apps/backend
+   alembic current  # Should show the latest migration
+   ```
+
+4. **macOS Fork Issues**: If you see "fork safety" errors on macOS:
+
+   ```bash
+   export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+   celery -A app.core.celery_app:celery_app worker --loglevel=info --pool=solo
+   ```
+
+5. **Debug Celery Tasks**: Check Celery logs for task execution
+   ```bash
+   celery -A app.core.celery_app:celery_app worker --loglevel=debug --pool=solo
+   ```
 
 ### Continuous Integration
 

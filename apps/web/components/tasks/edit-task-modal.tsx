@@ -33,7 +33,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
-import { TasksService, Task, UpdateTaskRequest } from '@/lib/api/tasks';
+import { Task, UpdateTaskRequest } from '@/lib/api/tasks';
+import { useUpdateTaskMutation, useDeleteTaskMutation } from '@/hooks/use-tasks-query';
 import { format, parseISO } from 'date-fns';
 
 interface EditTaskModalProps {
@@ -45,9 +46,8 @@ interface EditTaskModalProps {
 
 export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditTaskModalProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const updateTaskMutation = useUpdateTaskMutation();
+  const deleteTaskMutation = useDeleteTaskMutation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const [formData, setFormData] = useState<UpdateTaskRequest>({
@@ -81,40 +81,32 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
     if (!task) return;
 
     if (!formData.title?.trim()) {
-      setError('Task title is required');
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    // Prepare the data - convert empty strings to undefined
+    const taskData: UpdateTaskRequest = {
+      ...formData,
+      description: formData.description || undefined,
+      due_date: formData.due_date || undefined,
+      start_date: formData.start_date || undefined,
+      estimated_hours: formData.estimated_hours || undefined,
+    };
 
-    try {
-      // Prepare the data - convert empty strings to undefined
-      const taskData: UpdateTaskRequest = {
-        ...formData,
-        description: formData.description || undefined,
-        due_date: formData.due_date || undefined,
-        start_date: formData.start_date || undefined,
-        estimated_hours: formData.estimated_hours || undefined,
-      };
+    updateTaskMutation.mutate(
+      { id: task.id, data: taskData },
+      {
+        onSuccess: () => {
+          // Close modal
+          onOpenChange(false);
 
-      await TasksService.updateTask(task.id, taskData);
-
-      // Close modal
-      onOpenChange(false);
-
-      // Notify parent component
-      if (onTaskUpdated) {
-        onTaskUpdated();
+          // Notify parent component (optional now since React Query handles updates)
+          if (onTaskUpdated) {
+            onTaskUpdated();
+          }
+        },
       }
-
-      // Refresh the page to show the updated task
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update task');
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   const handleCancel = () => {
@@ -130,36 +122,30 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
         estimated_hours: task.estimated_hours,
       });
     }
-    setError(null);
+    updateTaskMutation.reset();
+    deleteTaskMutation.reset();
     onOpenChange(false);
   };
 
   const handleDelete = async () => {
     if (!task) return;
 
-    setDeleting(true);
-    setError(null);
+    deleteTaskMutation.mutate(task.id, {
+      onSuccess: () => {
+        // Close both dialogs
+        setShowDeleteDialog(false);
+        onOpenChange(false);
 
-    try {
-      await TasksService.deleteTask(task.id);
-
-      // Close both dialogs
-      setShowDeleteDialog(false);
-      onOpenChange(false);
-
-      // Notify parent component
-      if (onTaskUpdated) {
-        onTaskUpdated();
-      }
-
-      // Refresh the page
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete task');
-      setShowDeleteDialog(false);
-    } finally {
-      setDeleting(false);
-    }
+        // Notify parent component (optional now since React Query handles updates)
+        if (onTaskUpdated) {
+          onTaskUpdated();
+        }
+      },
+      onError: () => {
+        // Close delete dialog on error
+        setShowDeleteDialog(false);
+      },
+    });
   };
 
   if (!task) return null;
@@ -173,10 +159,16 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
             <DialogDescription>Update the task details below.</DialogDescription>
           </DialogHeader>
 
-          {error && (
+          {(updateTaskMutation.error || deleteTaskMutation.error) && (
             <Alert variant="destructive" className="mt-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {updateTaskMutation.error instanceof Error
+                  ? updateTaskMutation.error.message
+                  : deleteTaskMutation.error instanceof Error
+                    ? deleteTaskMutation.error.message
+                    : 'An error occurred'}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -188,7 +180,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                 placeholder="Enter task title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                disabled={loading}
+                disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
                 required
               />
             </div>
@@ -200,7 +192,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                 placeholder="Enter task description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                disabled={loading}
+                disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
                 rows={3}
               />
             </div>
@@ -211,7 +203,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                 <Select
                   value={formData.status}
                   onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                  disabled={loading}
+                  disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
                 >
                   <SelectTrigger id="status">
                     <SelectValue />
@@ -229,7 +221,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                 <Select
                   value={formData.priority}
                   onValueChange={(value) => setFormData({ ...formData, priority: value as any })}
-                  disabled={loading}
+                  disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
                 >
                   <SelectTrigger id="priority">
                     <SelectValue />
@@ -252,7 +244,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  disabled={loading}
+                  disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
                 />
               </div>
 
@@ -263,7 +255,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                   type="date"
                   value={formData.due_date}
                   onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  disabled={loading}
+                  disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
                 />
               </div>
             </div>
@@ -281,7 +273,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                     estimated_hours: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                disabled={loading}
+                disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
                 min="0"
                 step="0.5"
               />
@@ -293,7 +285,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
               type="button"
               variant="destructive"
               onClick={() => setShowDeleteDialog(true)}
-              disabled={loading || deleting}
+              disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
               className="sm:order-first"
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -304,13 +296,16 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
-                disabled={loading || deleting}
+                disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || deleting}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading ? 'Updating...' : 'Update Task'}
+              <Button
+                type="submit"
+                disabled={updateTaskMutation.isPending || deleteTaskMutation.isPending}
+              >
+                {updateTaskMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {updateTaskMutation.isPending ? 'Updating...' : 'Update Task'}
               </Button>
             </div>
           </DialogFooter>
@@ -328,14 +323,14 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteTaskMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={deleting}
+              disabled={deleteTaskMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {deleting ? 'Deleting...' : 'Delete Task'}
+              {deleteTaskMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleteTaskMutation.isPending ? 'Deleting...' : 'Delete Task'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -12,6 +12,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Detect macOS
+IS_MACOS=false
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    IS_MACOS=true
+fi
+
 # Default values
 WORKER_NAME="worker1"
 CONCURRENCY=4
@@ -20,6 +26,7 @@ QUEUES="default,notifications,recurring,webhooks,analytics,reminders"
 PIDFILE=""
 LOGFILE=""
 DETACH=false
+POOL="prefork"  # Default pool type
 
 # Help function
 show_help() {
@@ -33,6 +40,7 @@ show_help() {
     echo "  -p, --pidfile FILE      PID file path"
     echo "  -f, --logfile FILE      Log file path"
     echo "  -d, --detach            Run as daemon"
+    echo "      --pool TYPE         Pool implementation (default: prefork, use 'solo' for macOS)"
     echo "  -h, --help              Show this help message"
     echo ""
     echo "Examples:"
@@ -40,6 +48,11 @@ show_help() {
     echo "  $0 -n notifications_worker -q notifications"
     echo "  $0 -c 8 -l debug                     # High concurrency with debug logging"
     echo "  $0 -d -p /var/run/celery.pid         # Run as daemon"
+    if [[ "$IS_MACOS" == true ]]; then
+        echo ""
+        echo "macOS Note: This script automatically uses --pool=solo to avoid fork safety issues."
+        echo "To override this behavior, use the --pool option."
+    fi
 }
 
 # Parse command line arguments
@@ -73,6 +86,10 @@ while [[ $# -gt 0 ]]; do
             DETACH=true
             shift
             ;;
+        --pool)
+            POOL="$2"
+            shift 2
+            ;;
         -h|--help)
             show_help
             exit 0
@@ -84,6 +101,19 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Apply macOS-specific settings
+if [[ "$IS_MACOS" == true ]]; then
+    # Set fork safety environment variable
+    export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    
+    # Use solo pool by default on macOS unless explicitly overridden
+    if [[ "$POOL" == "prefork" ]]; then
+        POOL="solo"
+        echo -e "${YELLOW}macOS detected: Using --pool=solo to avoid fork safety issues${NC}"
+        echo -e "${YELLOW}Fork safety has been disabled with OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES${NC}"
+    fi
+fi
 
 # Check if we're in a virtual environment
 if [[ -z "$VIRTUAL_ENV" ]]; then
@@ -129,6 +159,7 @@ CELERY_CMD="$CELERY_CMD --hostname=${WORKER_NAME}@%h"
 CELERY_CMD="$CELERY_CMD --concurrency=$CONCURRENCY"
 CELERY_CMD="$CELERY_CMD --loglevel=$LOGLEVEL"
 CELERY_CMD="$CELERY_CMD --queues=$QUEUES"
+CELERY_CMD="$CELERY_CMD --pool=$POOL"
 
 # Add optional parameters
 if [[ -n "$PIDFILE" ]]; then
@@ -149,6 +180,7 @@ echo -e "  Worker Name: ${WORKER_NAME}"
 echo -e "  Concurrency: ${CONCURRENCY}"
 echo -e "  Log Level: ${LOGLEVEL}"
 echo -e "  Queues: ${QUEUES}"
+echo -e "  Pool: ${POOL}"
 if [[ -n "$PIDFILE" ]]; then
     echo -e "  PID File: ${PIDFILE}"
 fi
@@ -156,6 +188,9 @@ if [[ -n "$LOGFILE" ]]; then
     echo -e "  Log File: ${LOGFILE}"
 fi
 echo -e "  Detached: ${DETACH}"
+if [[ "$IS_MACOS" == true ]]; then
+    echo -e "  Environment: OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES"
+fi
 echo ""
 
 # Create directories for PID and log files if needed

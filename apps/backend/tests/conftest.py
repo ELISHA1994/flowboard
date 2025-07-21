@@ -1,26 +1,29 @@
 """
 Pytest configuration and shared fixtures for all tests.
 """
+
 import os
 import sys
 from typing import Generator
+from unittest.mock import Mock
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-from unittest.mock import Mock
 
 # Add the app directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.main import app
-from app.db.database import Base, get_db
-from app.db.models import User, Task
-from app.core.middleware.jwt_auth_backend import create_access_token, get_password_hash
-from datetime import timedelta
 import uuid
+from datetime import timedelta
 
+from app.core.middleware.jwt_auth_backend import (create_access_token,
+                                                  get_password_hash)
+from app.db.database import Base, get_db
+from app.db.models import Task, User
+from app.main import app
 
 # Test database URL (in-memory SQLite)
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -38,10 +41,10 @@ def test_db() -> Generator[Session, None, None]:
         poolclass=StaticPool,
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
+
     # Create all tables
     Base.metadata.create_all(bind=engine)
-    
+
     db = TestingSessionLocal()
     try:
         yield db
@@ -56,17 +59,18 @@ def test_client(test_db: Session) -> TestClient:
     """
     Create a test client with the test database.
     """
+
     def override_get_db():
         try:
             yield test_db
         finally:
             test_db.close()
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     with TestClient(app) as client:
         yield client
-    
+
     # Clear dependency overrides after test
     app.dependency_overrides.clear()
 
@@ -81,7 +85,7 @@ def test_user(test_db: Session) -> User:
         username="testuser",
         email="test@example.com",
         hashed_password=get_password_hash("testpass123"),
-        is_active=True
+        is_active=True,
     )
     test_db.add(user)
     test_db.commit()
@@ -100,8 +104,7 @@ def test_user_token(test_user: User) -> str:
     """
     access_token_expires = timedelta(minutes=30)
     return create_access_token(
-        data={"sub": test_user.username}, 
-        expires_delta=access_token_expires
+        data={"sub": test_user.username}, expires_delta=access_token_expires
     )
 
 
@@ -132,7 +135,7 @@ def second_user(test_db: Session) -> User:
         username="testuser2",
         email="test2@example.com",
         hashed_password=get_password_hash("testpass456"),
-        is_active=True
+        is_active=True,
     )
     test_db.add(user)
     test_db.commit()
@@ -151,8 +154,7 @@ def second_user_token(second_user: User) -> str:
     """
     access_token_expires = timedelta(minutes=30)
     return create_access_token(
-        data={"sub": second_user.username}, 
-        expires_delta=access_token_expires
+        data={"sub": second_user.username}, expires_delta=access_token_expires
     )
 
 
@@ -169,7 +171,8 @@ def test_task(test_db: Session, test_user: User) -> Task:
     """
     Create a test task in the database.
     """
-    from app.db.models import TaskStatus, TaskPriority
+    from app.db.models import TaskPriority, TaskStatus
+
     task = Task(
         id=str(uuid.uuid4()),
         title="Test Task",
@@ -178,7 +181,7 @@ def test_task(test_db: Session, test_user: User) -> Task:
         priority=TaskPriority.MEDIUM,
         user_id=test_user.id,
         actual_hours=0.0,
-        position=0
+        position=0,
     )
     test_db.add(task)
     test_db.commit()
@@ -200,15 +203,15 @@ def multiple_test_users(test_db: Session) -> list[User]:
             username=f"testuser{i}",
             email=f"test{i}@example.com",
             hashed_password=get_password_hash("testpass123"),
-            is_active=True
+            is_active=True,
         )
         test_db.add(user)
         users.append(user)
-    
+
     test_db.commit()
     for user in users:
         test_db.refresh(user)
-    
+
     return users
 
 
@@ -220,7 +223,7 @@ def sample_task_data() -> dict:
     return {
         "title": "Sample Task",
         "description": "This is a sample task for testing",
-        "status": "todo"
+        "status": "todo",
     }
 
 
@@ -232,7 +235,7 @@ def sample_user_data() -> dict:
     return {
         "username": "newuser",
         "email": "newuser@example.com",
-        "password": "newpass123"
+        "password": "newpass123",
     }
 
 
@@ -258,12 +261,6 @@ def pytest_configure(config):
     """
     Configure pytest with custom markers.
     """
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: mark test as an end-to-end test"
-    )
+    config.addinivalue_line("markers", "unit: mark test as a unit test")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line("markers", "e2e: mark test as an end-to-end test")

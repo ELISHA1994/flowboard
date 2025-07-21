@@ -4,6 +4,7 @@ Alembic Environment Configuration
 This file configures Alembic to work with our application's models and database settings.
 It supports multiple database backends and environment-specific configurations.
 """
+
 from logging.config import fileConfig
 import sys
 from pathlib import Path
@@ -19,13 +20,32 @@ from app.db.database import Base
 
 # Import all models to ensure they're registered with Base.metadata
 from app.db.models import (
-    User, Task, TaskStatus, TaskPriority, Category, Tag,
-    TaskDependency, Project, ProjectRole, 
-    ProjectMember, ProjectInvitation, TaskSharePermission, TaskShare,
-    Comment, CommentMention, FileAttachment, RecurrencePattern,
-    SavedSearch, TimeLog, WebhookSubscription,
-    WebhookDelivery, CalendarIntegration, TaskCalendarSync,
-    NotificationPreference, Notification, TaskReminder
+    User,
+    Task,
+    TaskStatus,
+    TaskPriority,
+    Category,
+    Tag,
+    TaskDependency,
+    Project,
+    ProjectRole,
+    ProjectMember,
+    ProjectInvitation,
+    TaskSharePermission,
+    TaskShare,
+    Comment,
+    CommentMention,
+    FileAttachment,
+    RecurrencePattern,
+    SavedSearch,
+    TimeLog,
+    WebhookSubscription,
+    WebhookDelivery,
+    CalendarIntegration,
+    TaskCalendarSync,
+    NotificationPreference,
+    Notification,
+    TaskReminder,
 )
 
 # this is the Alembic Config object, which provides
@@ -58,7 +78,7 @@ def include_object(object, name, type_, reflected, compare_to):
     # Example: Exclude the alembic_version table
     if type_ == "table" and name == "alembic_version":
         return False
-    
+
     # Include all other objects
     return True
 
@@ -100,11 +120,11 @@ def run_migrations_online() -> None:
     # Get database configuration
     db_config = config.get_section(config.config_ini_section, {})
     db_config["sqlalchemy.url"] = settings.get_database_url()
-    
+
     # Handle SQLite-specific settings
     if settings.DATABASE_URL.startswith("sqlite"):
         db_config["sqlalchemy.connect_args"] = {"check_same_thread": False}
-    
+
     # Create engine with appropriate settings
     connectable = engine_from_config(
         db_config,
@@ -121,7 +141,9 @@ def run_migrations_online() -> None:
             compare_type=True,
             compare_server_default=True,
             # PostgreSQL-specific options
-            include_schemas=True if settings.DATABASE_URL.startswith("postgresql") else False,
+            include_schemas=(
+                True if settings.DATABASE_URL.startswith("postgresql") else False
+            ),
         )
 
         with context.begin_transaction():
@@ -132,5 +154,7 @@ if context.is_offline_mode():
     print("Running migrations in OFFLINE mode")
     run_migrations_offline()
 else:
-    print(f"Running migrations in ONLINE mode against: {settings.ENVIRONMENT} environment")
+    print(
+        f"Running migrations in ONLINE mode against: {settings.ENVIRONMENT} environment"
+    )
     run_migrations_online()

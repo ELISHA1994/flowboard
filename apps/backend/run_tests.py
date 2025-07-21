@@ -13,80 +13,64 @@ def run_command(cmd: List[str], description: str) -> int:
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
     print(f"{'='*60}\n")
-    
+
     result = subprocess.run(cmd)
     return result.returncode
 
 
 def run_all_tests():
     """Run all tests with coverage."""
-    return run_command(
-        ["pytest"],
-        "All tests with coverage"
-    )
+    return run_command(["pytest"], "All tests with coverage")
 
 
 def run_unit_tests():
     """Run only unit tests."""
     return run_command(
-        ["pytest", "-m", "unit", "--cov-fail-under=0"],
-        "Unit tests only"
+        ["pytest", "-m", "unit", "--cov-fail-under=0"], "Unit tests only"
     )
 
 
 def run_integration_tests():
     """Run only integration tests."""
     return run_command(
-        ["pytest", "-m", "integration", "--cov-fail-under=0"],
-        "Integration tests only"
+        ["pytest", "-m", "integration", "--cov-fail-under=0"], "Integration tests only"
     )
 
 
 def run_e2e_tests():
     """Run only end-to-end tests."""
     return run_command(
-        ["pytest", "-m", "e2e", "--cov-fail-under=0"],
-        "End-to-end tests only"
+        ["pytest", "-m", "e2e", "--cov-fail-under=0"], "End-to-end tests only"
     )
 
 
 def run_specific_file(file_path: str):
     """Run tests in a specific file."""
     return run_command(
-        ["pytest", file_path, "-v", "--cov-fail-under=0"],
-        f"Tests in {file_path}"
+        ["pytest", file_path, "-v", "--cov-fail-under=0"], f"Tests in {file_path}"
     )
 
 
 def run_with_verbose():
     """Run all tests with verbose output."""
-    return run_command(
-        ["pytest", "-vv", "-s"],
-        "All tests with verbose output"
-    )
+    return run_command(["pytest", "-vv", "-s"], "All tests with verbose output")
 
 
 def run_failed_first():
     """Run failed tests first, then the rest."""
-    return run_command(
-        ["pytest", "--failed-first"],
-        "Failed tests first"
-    )
+    return run_command(["pytest", "--failed-first"], "Failed tests first")
 
 
 def run_last_failed():
     """Run only the tests that failed in the last run."""
-    return run_command(
-        ["pytest", "--last-failed"],
-        "Only last failed tests"
-    )
+    return run_command(["pytest", "--last-failed"], "Only last failed tests")
 
 
 def generate_coverage_report():
     """Generate HTML coverage report."""
     run_command(
         ["pytest", "--cov=app", "--cov-report=html", "--cov-report=term"],
-        "Generating coverage report"
+        "Generating coverage report",
     )
     print("\nCoverage report generated in htmlcov/index.html")
     return 0
@@ -113,9 +97,9 @@ def main():
         print("  python run_tests.py unit")
         print("  python run_tests.py file tests/unit/services/test_task_service.py")
         return 1
-    
+
     option = sys.argv[1].lower()
-    
+
     if option == "all":
         return run_all_tests()
     elif option == "unit":

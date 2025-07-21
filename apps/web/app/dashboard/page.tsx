@@ -15,7 +15,11 @@ import {
   Calendar,
   AlertCircle,
 } from 'lucide-react';
-import { useTaskStatistics, useRecentTasks, useUpcomingTasks } from '@/hooks/use-tasks';
+import {
+  useTaskStatisticsQuery,
+  useRecentTasksQuery,
+  useUpcomingTasksQuery,
+} from '@/hooks/use-tasks-query';
 import { useRecentActivity } from '@/hooks/use-notifications';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,25 +32,19 @@ export default function DashboardPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const { statistics, loading: statsLoading, error: statsError } = useTaskStatistics();
+  const { data: statsData, isLoading: statsLoading, error: statsError } = useTaskStatisticsQuery();
+  const statistics = statsData;
   const {
-    tasks: recentTasks,
-    loading: recentLoading,
+    data: recentTasks = [],
+    isLoading: recentLoading,
     error: recentError,
-    refetch: refetchRecent,
-  } = useRecentTasks(5);
+  } = useRecentTasksQuery(5);
   const {
-    tasks: upcomingTasks,
-    loading: upcomingLoading,
+    data: upcomingTasks = [],
+    isLoading: upcomingLoading,
     error: upcomingError,
-    refetch: refetchUpcoming,
-  } = useUpcomingTasks(7);
-  const {
-    activities,
-    loading: activityLoading,
-    error: activityError,
-    refetch: refetchActivity,
-  } = useRecentActivity(5);
+  } = useUpcomingTasksQuery(7);
+  const { activities, loading: activityLoading, error: activityError } = useRecentActivity(5);
 
   // Show a general error if all requests fail
   const hasErrors = statsError || recentError || upcomingError || activityError;
@@ -434,8 +432,7 @@ export default function DashboardPage() {
         open={createModalOpen}
         onOpenChange={setCreateModalOpen}
         onTaskCreated={() => {
-          refetchRecent();
-          refetchUpcoming();
+          // React Query will automatically refetch after mutations
         }}
       />
 
@@ -445,8 +442,7 @@ export default function DashboardPage() {
         onOpenChange={setEditModalOpen}
         task={selectedTask}
         onTaskUpdated={() => {
-          refetchRecent();
-          refetchUpcoming();
+          // React Query will automatically refetch after mutations
           setSelectedTask(null);
         }}
       />

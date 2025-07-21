@@ -353,7 +353,8 @@ start_beat() {
                 --loglevel "$LOGLEVEL" &
         fi
         
-        sleep 2
+        # Give beat more time to start and write PID file
+        sleep 4
         echo ""
     fi
 }

@@ -45,20 +45,27 @@ import {
   CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TasksService, Task, TaskStatus, TaskPriority } from '@/lib/api/tasks';
+import { Task, TaskStatus, TaskPriority, CreateTaskRequest } from '@/lib/api/tasks';
 import { CreateTaskModal } from '@/components/tasks/create-task-modal';
 import { TaskCalendar } from '@/components/tasks/task-calendar';
 import { DashboardLayout } from '@/components/layouts/dashboard-layout';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import {
+  useTasksQuery,
+  useBulkUpdateTasksMutation,
+  useBulkDeleteTasksMutation,
+  useDeleteTaskMutation,
+  useCreateTaskMutation,
+} from '@/hooks/use-tasks-query';
+import { EditTaskModal } from '@/components/tasks/edit-task-modal';
+import { ShareTaskModal } from '@/components/tasks/share-task-modal';
 
 type ViewMode = 'list' | 'board' | 'calendar';
 
 export default function TasksPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,39 +73,50 @@ export default function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sortBy, setSortBy] = useState<string>('position');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [taskToShare, setTaskToShare] = useState<Task | null>(null);
 
-  // Fetch tasks
-  const fetchTasks = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await TasksService.getTasks({
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        priority: priorityFilter === 'all' ? undefined : priorityFilter,
-        sort_by: sortBy,
-        limit: 100,
-      });
-      setTasks(response.tasks || []);
-    } catch (error) {
+  const bulkUpdateMutation = useBulkUpdateTasksMutation();
+  const bulkDeleteMutation = useBulkDeleteTasksMutation();
+  const deleteTaskMutation = useDeleteTaskMutation();
+  const createTaskMutation = useCreateTaskMutation();
+
+  // Fetch tasks using React Query
+  const {
+    data: tasksData,
+    isLoading,
+    error,
+  } = useTasksQuery({
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    priority: priorityFilter === 'all' ? undefined : priorityFilter,
+    sort_by: sortBy === 'position' ? 'created_at' : (sortBy as any),
+    limit: 100,
+  });
+
+  const tasks = tasksData?.tasks || [];
+
+  // Show error if fetch failed
+  useEffect(() => {
+    if (error) {
       console.error('Failed to fetch tasks:', error);
       toast({
         title: 'Error',
         description: 'Failed to load tasks. Please try again.',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
-  }, [statusFilter, priorityFilter, sortBy, toast]);
+  }, [error, toast]);
 
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
-
-  // Filter tasks based on search
+  // Filter tasks based on search and exclude subtasks (following UX best practices)
   const filteredTasks = tasks.filter(
     (task) =>
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      // Exclude subtasks - only show parent tasks in main list
+      !task.parent_task_id &&
+      // Apply search filter
+      (task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   // Handle task selection
@@ -117,24 +135,14 @@ export default function TasksPage() {
   };
 
   // Handle bulk actions
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedTasks.length === 0) return;
 
-    try {
-      await Promise.all(selectedTasks.map((taskId) => TasksService.deleteTask(taskId)));
-      toast({
-        title: 'Success',
-        description: `${selectedTasks.length} tasks deleted successfully`,
-      });
-      setSelectedTasks([]);
-      fetchTasks();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete tasks. Please try again.',
-        variant: 'destructive',
-      });
-    }
+    bulkDeleteMutation.mutate(selectedTasks, {
+      onSuccess: () => {
+        setSelectedTasks([]);
+      },
+    });
   };
 
   // Get status icon
@@ -313,7 +321,7 @@ export default function TasksPage() {
 
         {/* Task List */}
         <div className="flex-1 overflow-auto">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -421,33 +429,45 @@ export default function TasksPage() {
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const duplicateData: CreateTaskRequest = {
+                              title: `${task.title} (Copy)`,
+                              description: task.description,
+                              status: task.status,
+                              priority: task.priority,
+                              due_date: task.due_date,
+                              start_date: task.start_date,
+                              estimated_hours: task.estimated_hours,
+                              assigned_to_id: task.assigned_to_id,
+                              project_id: task.project_id,
+                              parent_task_id: task.parent_task_id,
+                              tag_ids: task.tags.map((tag) => tag.id),
+                              category_ids: task.categories.map((cat) => cat.id),
+                            };
+                            createTaskMutation.mutate(duplicateData);
+                          }}
+                        >
                           <Copy className="mr-2 h-4 w-4" />
                           Duplicate
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTaskToShare(task);
+                            setShareModalOpen(true);
+                          }}
+                        >
                           <Share2 className="mr-2 h-4 w-4" />
                           Share
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            try {
-                              await TasksService.deleteTask(task.id);
-                              toast({
-                                title: 'Success',
-                                description: 'Task deleted successfully',
-                              });
-                              fetchTasks();
-                            } catch (error) {
-                              toast({
-                                title: 'Error',
-                                description: 'Failed to delete task',
-                                variant: 'destructive',
-                              });
-                            }
+                            deleteTaskMutation.mutate(task.id);
                           }}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -512,29 +532,35 @@ export default function TasksPage() {
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const duplicateData: CreateTaskRequest = {
+                                      title: `${task.title} (Copy)`,
+                                      description: task.description,
+                                      status: task.status,
+                                      priority: task.priority,
+                                      due_date: task.due_date,
+                                      start_date: task.start_date,
+                                      estimated_hours: task.estimated_hours,
+                                      assigned_to_id: task.assigned_to_id,
+                                      project_id: task.project_id,
+                                      parent_task_id: task.parent_task_id,
+                                      tag_ids: task.tags.map((tag) => tag.id),
+                                      category_ids: task.categories.map((cat) => cat.id),
+                                    };
+                                    createTaskMutation.mutate(duplicateData);
+                                  }}
+                                >
                                   <Copy className="mr-2 h-4 w-4" />
                                   Duplicate
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive"
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
-                                    try {
-                                      await TasksService.deleteTask(task.id);
-                                      toast({
-                                        title: 'Success',
-                                        description: 'Task deleted successfully',
-                                      });
-                                      fetchTasks();
-                                    } catch (error) {
-                                      toast({
-                                        title: 'Error',
-                                        description: 'Failed to delete task',
-                                        variant: 'destructive',
-                                      });
-                                    }
+                                    deleteTaskMutation.mutate(task.id);
                                   }}
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" />
@@ -593,11 +619,25 @@ export default function TasksPage() {
         <CreateTaskModal
           open={showCreateModal}
           onOpenChange={setShowCreateModal}
-          onSuccess={() => {
-            fetchTasks();
+          onTaskCreated={() => {
+            // React Query will automatically refetch
             setShowCreateModal(false);
           }}
         />
+
+        {/* Edit Task Modal */}
+        <EditTaskModal
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          task={selectedTask}
+          onTaskUpdated={() => {
+            // React Query will automatically refetch
+            setSelectedTask(null);
+          }}
+        />
+
+        {/* Share Task Modal */}
+        <ShareTaskModal open={shareModalOpen} onOpenChange={setShareModalOpen} task={taskToShare} />
       </div>
     </DashboardLayout>
   );

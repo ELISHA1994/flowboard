@@ -1,8 +1,10 @@
-from fastapi import Request, HTTPException
-from fastapi.responses import JSONResponse
 import logging
 
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
+
 logger = logging.getLogger(__name__)
+
 
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions"""
@@ -12,9 +14,10 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "status": "error",
             "status_code": exc.status_code,
             "message": exc.detail,
-            "data": None
+            "data": None,
         },
     )
+
 
 async def general_exception_handler(request: Request, exc: Exception):
     """Handle general exceptions"""
@@ -25,9 +28,10 @@ async def general_exception_handler(request: Request, exc: Exception):
             "status": "error",
             "status_code": 500,
             "message": "An unexpected error occurred.",
-            "data": None
+            "data": None,
         },
     )
+
 
 async def on_auth_error(request: Request, exc: Exception):
     """Handle authentication errors"""
@@ -37,6 +41,6 @@ async def on_auth_error(request: Request, exc: Exception):
             "status": "error",
             "status_code": 401,
             "message": "Authentication failed.",
-            "data": None
+            "data": None,
         },
     )

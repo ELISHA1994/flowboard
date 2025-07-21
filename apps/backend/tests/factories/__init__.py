@@ -1,13 +1,14 @@
 """
 Test factories for generating test data.
 """
-from .user_factory import UserFactory, UserCreateFactory
-from .task_factory import TaskFactory, TaskCreateFactory, TaskUpdateFactory
+
+from .task_factory import TaskCreateFactory, TaskFactory, TaskUpdateFactory
+from .user_factory import UserCreateFactory, UserFactory
 
 __all__ = [
     "UserFactory",
-    "UserCreateFactory", 
+    "UserCreateFactory",
     "TaskFactory",
     "TaskCreateFactory",
-    "TaskUpdateFactory"
+    "TaskUpdateFactory",
 ]

@@ -1,6 +1,9 @@
 from fastapi import APIRouter
-from app.api.routers import auth, tasks, users, categories, tags, comments, files, search, analytics, webhooks, calendar, notifications
+
 from app.api.endpoints import projects
+from app.api.routers import (activities, analytics, auth, calendar, categories,
+                             comments, files, notifications, search, tags,
+                             tasks, users, webhooks)
 
 api_router = APIRouter()
 
@@ -22,7 +25,7 @@ api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 # Include projects router
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 
-# Include comments router  
+# Include comments router
 api_router.include_router(comments.router, tags=["comments"])
 
 # Include files router
@@ -42,3 +45,6 @@ api_router.include_router(calendar.router, tags=["calendar"])
 
 # Include notifications router
 api_router.include_router(notifications.router, tags=["notifications"])
+
+# Include activities router
+api_router.include_router(activities.router, tags=["activities"])
