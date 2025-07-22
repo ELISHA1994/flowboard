@@ -49,10 +49,8 @@ export interface UpdateMemberRoleRequest {
 }
 
 export class ProjectsService {
-  private static API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
   private static async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    return ApiClient.fetchJSON(`${this.API_URL}${endpoint}`, options);
+    return ApiClient.fetchJSON(ApiClient.buildUrl(endpoint), options);
   }
 
   // Get all projects

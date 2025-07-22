@@ -17,6 +17,9 @@ class ProjectBase(BaseModel):
     description: Optional[str] = Field(
         None, max_length=1000, description="Project description"
     )
+    color: Optional[str] = Field(
+        None, max_length=7, description="Project color in hex format"
+    )
 
     @field_validator("name")
     @classmethod

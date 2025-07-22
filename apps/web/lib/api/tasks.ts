@@ -1,7 +1,4 @@
-import { AuthService } from '@/lib/auth';
 import { ApiClient } from '@/lib/api-client';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -143,7 +140,9 @@ export class TasksService {
       });
     }
 
-    const url = `${API_BASE_URL}/tasks${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = ApiClient.buildUrl(
+      `/tasks${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    );
     const data = await this.fetchWithAuth(url);
 
     // The backend returns an array directly for the list endpoint
@@ -158,25 +157,25 @@ export class TasksService {
   }
 
   static async getTask(taskId: string): Promise<Task> {
-    return this.fetchWithAuth(`${API_BASE_URL}/tasks/${taskId}`);
+    return this.fetchWithAuth(ApiClient.buildUrl(`/tasks/${taskId}`));
   }
 
   static async createTask(task: CreateTaskRequest): Promise<Task> {
-    return this.fetchWithAuth(`${API_BASE_URL}/tasks`, {
+    return this.fetchWithAuth(ApiClient.buildUrl('/tasks'), {
       method: 'POST',
       body: JSON.stringify(task),
     });
   }
 
   static async updateTask(taskId: string, updates: UpdateTaskRequest): Promise<Task> {
-    return this.fetchWithAuth(`${API_BASE_URL}/tasks/${taskId}`, {
+    return this.fetchWithAuth(ApiClient.buildUrl(`/tasks/${taskId}`), {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
   }
 
   static async deleteTask(taskId: string): Promise<void> {
-    await ApiClient.fetchJSON(`${API_BASE_URL}/tasks/${taskId}`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl(`/tasks/${taskId}`), {
       method: 'DELETE',
     });
   }
@@ -196,7 +195,9 @@ export class TasksService {
       });
     }
 
-    const url = `${API_BASE_URL}/analytics/statistics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = ApiClient.buildUrl(
+      `/analytics/statistics${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    );
     return this.fetchWithAuth(url);
   }
 
@@ -233,7 +234,7 @@ export class TasksService {
   }
 
   static async bulkUpdateTasks(taskIds: string[], updates: UpdateTaskRequest): Promise<void> {
-    return this.fetchWithAuth(`${API_BASE_URL}/tasks/bulk/update`, {
+    return this.fetchWithAuth(ApiClient.buildUrl('/tasks/bulk/update'), {
       method: 'PUT',
       body: JSON.stringify({
         task_ids: taskIds,
@@ -243,7 +244,7 @@ export class TasksService {
   }
 
   static async bulkDeleteTasks(taskIds: string[]): Promise<void> {
-    await ApiClient.fetchJSON(`${API_BASE_URL}/tasks/bulk/delete`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl('/tasks/bulk/delete'), {
       method: 'DELETE',
       body: JSON.stringify({
         task_ids: taskIds,

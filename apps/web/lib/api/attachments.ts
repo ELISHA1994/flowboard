@@ -1,6 +1,4 @@
-import { AuthService } from '@/lib/auth';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { ApiClient } from '@/lib/api-client';
 
 export interface FileAttachment {
   id: string;
@@ -24,51 +22,17 @@ export interface FileUploadLimits {
 }
 
 export class AttachmentsService {
-  private static async fetchWithAuth(url: string, options: RequestInit = {}) {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(error.detail || `Request failed with status ${response.status}`);
-    }
-
-    // Only parse JSON if there's content
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return response.json();
-    }
-
-    return null;
-  }
-
   static async uploadAttachment(taskId: string, file: File): Promise<FileAttachment> {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/attachments`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type header, let the browser set it with boundary for multipart/form-data
-      },
-    });
+    const response = await ApiClient.fetchWithAuth(
+      ApiClient.buildUrl(`/tasks/${taskId}/attachments`),
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
@@ -81,21 +45,14 @@ export class AttachmentsService {
   static async getTaskAttachments(
     taskId: string
   ): Promise<{ attachments: FileAttachment[]; total: number }> {
-    return this.fetchWithAuth(`${API_BASE_URL}/tasks/${taskId}/attachments`);
+    return ApiClient.fetchJSON(ApiClient.buildUrl(`/tasks/${taskId}/attachments`));
   }
 
   static async downloadAttachment(attachmentId: string): Promise<void> {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
     try {
-      const response = await fetch(`${API_BASE_URL}/attachments/${attachmentId}/download`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await ApiClient.fetchWithAuth(
+        ApiClient.buildUrl(`/attachments/${attachmentId}/download`)
+      );
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Download failed' }));
@@ -133,13 +90,13 @@ export class AttachmentsService {
   }
 
   static async deleteAttachment(attachmentId: string): Promise<void> {
-    await this.fetchWithAuth(`${API_BASE_URL}/attachments/${attachmentId}`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl(`/attachments/${attachmentId}`), {
       method: 'DELETE',
     });
   }
 
   static async getUploadLimits(): Promise<FileUploadLimits> {
-    return this.fetchWithAuth(`${API_BASE_URL}/attachments/limits`);
+    return ApiClient.fetchJSON(ApiClient.buildUrl(`/attachments/limits`));
   }
 
   static formatFileSize(bytes: number): string {

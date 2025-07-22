@@ -1,6 +1,4 @@
-import { AuthService } from '@/lib/auth';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { ApiClient } from '@/lib/api-client';
 
 export interface Notification {
   id: string;
@@ -33,29 +31,6 @@ export interface ActivityItem {
 }
 
 export class NotificationsService {
-  private static async fetchWithAuth(url: string, options: RequestInit = {}) {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(error.detail || `Request failed with status ${response.status}`);
-    }
-
-    return response.json();
-  }
-
   static async getNotifications(params?: {
     unread_only?: boolean;
     notification_type?: string;
@@ -72,29 +47,31 @@ export class NotificationsService {
       });
     }
 
-    const url = `${API_BASE_URL}/notifications${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return this.fetchWithAuth(url);
+    const url = ApiClient.buildUrl(
+      `/notifications${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    );
+    return ApiClient.fetchJSON<Notification[]>(url);
   }
 
   static async getNotificationStats(): Promise<NotificationStats> {
-    return this.fetchWithAuth(`${API_BASE_URL}/notifications/stats`);
+    return ApiClient.fetchJSON<NotificationStats>(ApiClient.buildUrl('/notifications/stats'));
   }
 
   static async markNotificationRead(notificationId: string): Promise<void> {
-    await this.fetchWithAuth(`${API_BASE_URL}/notifications/read/${notificationId}`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl(`/notifications/read/${notificationId}`), {
       method: 'PUT',
     });
   }
 
   static async markAllNotificationsRead(notificationType?: string): Promise<void> {
     const queryParams = notificationType ? `?notification_type=${notificationType}` : '';
-    await this.fetchWithAuth(`${API_BASE_URL}/notifications/read-all${queryParams}`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl(`/notifications/read-all${queryParams}`), {
       method: 'PUT',
     });
   }
 
   static async deleteNotification(notificationId: string): Promise<void> {
-    await this.fetchWithAuth(`${API_BASE_URL}/notifications/${notificationId}`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl(`/notifications/${notificationId}`), {
       method: 'DELETE',
     });
   }

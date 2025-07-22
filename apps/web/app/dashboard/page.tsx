@@ -187,7 +187,13 @@ export default function DashboardPage() {
               {recentError ? (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{recentError}</AlertDescription>
+                  <AlertDescription>
+                    {typeof recentError === 'string'
+                      ? recentError
+                      : recentError instanceof Error
+                        ? recentError.message
+                        : 'Failed to load recent tasks'}
+                  </AlertDescription>
                 </Alert>
               ) : recentLoading ? (
                 <div className="space-y-4">
@@ -291,7 +297,13 @@ export default function DashboardPage() {
               {activityError ? (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{activityError}</AlertDescription>
+                  <AlertDescription>
+                    {typeof activityError === 'string'
+                      ? activityError
+                      : activityError instanceof Error
+                        ? activityError.message
+                        : 'Failed to load activity'}
+                  </AlertDescription>
                 </Alert>
               ) : activityLoading ? (
                 <div className="space-y-4">
@@ -345,7 +357,13 @@ export default function DashboardPage() {
             {upcomingError ? (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{upcomingError}</AlertDescription>
+                <AlertDescription>
+                  {typeof upcomingError === 'string'
+                    ? upcomingError
+                    : upcomingError instanceof Error
+                      ? upcomingError.message
+                      : 'Failed to load upcoming tasks'}
+                </AlertDescription>
               </Alert>
             ) : upcomingLoading ? (
               <div className="space-y-4">

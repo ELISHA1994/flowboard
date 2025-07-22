@@ -8,7 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (userData: RegisterRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -29,55 +29,36 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Check if user is already authenticated on mount
   useEffect(() => {
+    // Prevent double initialization in React StrictMode
+    if (isInitialized) return;
+
     const initializeAuth = async () => {
-      if (AuthService.isAuthenticated()) {
-        try {
-          const currentUser = await AuthService.getCurrentUser();
+      try {
+        setIsInitialized(true);
+        // First, try to get current user (this will attempt refresh if needed)
+        const currentUser = await AuthService.getCurrentUser();
+        if (currentUser) {
           setUser(currentUser);
-        } catch (error) {
-          // Token might be invalid, clear it
-          AuthService.clearToken();
+        } else {
           setUser(null);
         }
+      } catch (error) {
+        // If all auth attempts fail, user is not authenticated
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeAuth();
-  }, []);
+  }, [isInitialized]);
 
-  // Periodically validate token (every 5 minutes)
-  useEffect(() => {
-    if (!user) return;
-
-    const validateToken = async () => {
-      try {
-        const currentUser = await AuthService.getCurrentUser();
-        if (!currentUser) {
-          // Token is invalid
-          AuthService.clearToken();
-          setUser(null);
-          window.location.href = '/login';
-        }
-      } catch (error) {
-        // Token validation failed
-        AuthService.clearToken();
-        setUser(null);
-        window.location.href = '/login';
-      }
-    };
-
-    // Validate immediately when user changes
-    validateToken();
-
-    // Then validate every 5 minutes
-    const interval = setInterval(validateToken, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [user?.id]); // Only re-run if user ID changes
+  // No need for periodic validation anymore -
+  // the API client will automatically refresh tokens when needed
 
   const login = async (credentials: LoginRequest) => {
     setIsLoading(true);
@@ -101,9 +82,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    AuthService.logout();
+  const logout = async () => {
+    await AuthService.logout();
     setUser(null);
+    window.location.href = '/login';
   };
 
   const value: AuthContextType = {

@@ -1,6 +1,4 @@
-import { AuthService } from '@/lib/auth';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { ApiClient } from '@/lib/api-client';
 
 export interface TaskReminder {
   id: string;
@@ -59,83 +57,55 @@ export interface NotificationPreferencesUpdate {
 }
 
 export class RemindersService {
-  private static async fetchWithAuth(url: string, options: RequestInit = {}) {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(error.detail || `Request failed with status ${response.status}`);
-    }
-
-    // Handle empty response (204 No Content)
-    if (response.status === 204) {
-      return null;
-    }
-
-    return response.json();
-  }
-
   static async createTaskReminder(reminder: TaskReminderCreate): Promise<TaskReminder> {
-    return this.fetchWithAuth(`${API_BASE_URL}/notifications/reminders`, {
+    return ApiClient.fetchJSON(ApiClient.buildUrl('/notifications/reminders'), {
       method: 'POST',
       body: JSON.stringify(reminder),
     });
   }
 
   static async createDueDateReminders(data: TaskDueDateRemindersCreate): Promise<TaskReminder[]> {
-    return this.fetchWithAuth(`${API_BASE_URL}/notifications/reminders/due-date`, {
+    return ApiClient.fetchJSON(ApiClient.buildUrl('/notifications/reminders/due-date'), {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   static async getTaskReminders(taskId: string): Promise<TaskReminder[]> {
-    return this.fetchWithAuth(`${API_BASE_URL}/notifications/reminders?task_id=${taskId}`);
+    return ApiClient.fetchJSON(ApiClient.buildUrl(`/notifications/reminders?task_id=${taskId}`));
   }
 
   static async updateTaskReminder(
     reminderId: string,
     update: TaskReminderUpdate
   ): Promise<TaskReminder> {
-    return this.fetchWithAuth(`${API_BASE_URL}/notifications/reminders/${reminderId}`, {
+    return ApiClient.fetchJSON(ApiClient.buildUrl(`/notifications/reminders/${reminderId}`), {
       method: 'PUT',
       body: JSON.stringify(update),
     });
   }
 
   static async deleteTaskReminder(reminderId: string): Promise<void> {
-    await this.fetchWithAuth(`${API_BASE_URL}/notifications/reminders/${reminderId}`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl(`/notifications/reminders/${reminderId}`), {
       method: 'DELETE',
     });
   }
 
   static async getNotificationPreferences(): Promise<NotificationPreferences> {
-    return this.fetchWithAuth(`${API_BASE_URL}/notifications/preferences`);
+    return ApiClient.fetchJSON(ApiClient.buildUrl('/notifications/preferences'));
   }
 
   static async updateNotificationPreferences(
     preferences: NotificationPreferencesUpdate
   ): Promise<NotificationPreferences> {
-    return this.fetchWithAuth(`${API_BASE_URL}/notifications/preferences`, {
+    return ApiClient.fetchJSON(ApiClient.buildUrl('/notifications/preferences'), {
       method: 'PUT',
       body: JSON.stringify(preferences),
     });
   }
 
   static async processReminders(): Promise<void> {
-    await this.fetchWithAuth(`${API_BASE_URL}/notifications/process-reminders`, {
+    await ApiClient.fetchJSON(ApiClient.buildUrl('/notifications/process-reminders'), {
       method: 'POST',
     });
   }

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TasksService, Task, CreateTaskRequest, UpdateTaskRequest } from '@/lib/api/tasks';
-import { AuthService } from '@/lib/auth';
+import { ApiClient } from '@/lib/api-client';
 import { useToastContext } from '@/contexts/toast-context';
 
 // Import taskKeys from existing tasks query hook
@@ -23,20 +23,7 @@ export const subtaskKeys = {
 // Enhanced API service for subtasks
 const SubtasksAPI = {
   async getSubtasks(parentTaskId: string): Promise<Task[]> {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${API_BASE_URL}/tasks/${parentTaskId}/subtasks`, {
-      headers: {
-        Authorization: `Bearer ${AuthService.getToken()}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Failed to fetch subtasks' }));
-      throw new Error(error.detail || `Failed to fetch subtasks: ${response.status}`);
-    }
-
-    return response.json();
+    return ApiClient.fetchJSON(ApiClient.buildUrl(`/tasks/${parentTaskId}/subtasks`));
   },
 };
 

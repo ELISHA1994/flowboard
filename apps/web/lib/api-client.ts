@@ -1,6 +1,7 @@
 import { AuthService } from '@/lib/auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use relative URLs to go through Next.js proxy
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export interface ApiError extends Error {
   status?: number;
@@ -11,18 +12,29 @@ export interface ApiError extends Error {
  * Global API client with authentication and error handling
  */
 export class ApiClient {
-  /**
-   * Perform an authenticated fetch request with automatic error handling
-   */
-  static async fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-    const token = AuthService.getToken();
+  private static isRefreshing = false;
+  private static refreshPromise: Promise<boolean> | null = null;
 
-    if (!token) {
-      // Redirect to login if no token
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+  /**
+   * Perform an authenticated fetch request with automatic error handling and token refresh
+   */
+  static async fetchWithAuth(
+    url: string,
+    options: RequestInit = {},
+    isRetry = false
+  ): Promise<Response> {
+    let token = AuthService.getToken();
+
+    // If no token, try to refresh
+    if (!token && !isRetry) {
+      const refreshed = await this.refreshTokenIfNeeded();
+      if (!refreshed) {
+        // Don't redirect here - let the auth context handle redirects
+        const error: ApiError = new Error('No authentication token found');
+        error.status = 401;
+        throw error;
       }
-      throw new Error('No authentication token found');
+      token = AuthService.getToken();
     }
 
     const headers = {
@@ -39,24 +51,46 @@ export class ApiClient {
     const response = await fetch(url, {
       ...options,
       headers,
+      credentials: 'include', // Always include cookies
     });
 
     // Handle 401 Unauthorized errors
-    if (response.status === 401) {
-      // Clear invalid token
-      AuthService.clearToken();
+    if (response.status === 401 && !isRetry) {
+      // Try to refresh token
+      const refreshed = await this.refreshTokenIfNeeded();
 
-      // Redirect to login
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      if (refreshed) {
+        // Retry the request with new token
+        return this.fetchWithAuth(url, options, true);
+      } else {
+        // Refresh failed - let auth context handle the redirect
+        const error: ApiError = new Error('Authentication expired. Please login again.');
+        error.status = 401;
+        throw error;
       }
-
-      const error: ApiError = new Error('Authentication expired. Please login again.');
-      error.status = 401;
-      throw error;
     }
 
     return response;
+  }
+
+  /**
+   * Refresh token if needed (with deduplication)
+   */
+  private static async refreshTokenIfNeeded(): Promise<boolean> {
+    // If already refreshing, wait for the existing promise
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = AuthService.refreshToken()
+      .then((result) => !!result)
+      .finally(() => {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+      });
+
+    return this.refreshPromise;
   }
 
   /**

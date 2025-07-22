@@ -28,6 +28,7 @@ class ProjectService:
             id=str(uuid.uuid4()),
             name=project_data.name,
             description=project_data.description,
+            color=project_data.color,
             owner_id=owner_id,
             is_active=True,
         )
@@ -278,6 +279,7 @@ class ProjectService:
             id=project.id,
             name=project.name,
             description=project.description,
+            color=project.color,
             owner_id=project.owner_id,
             owner_username=project.owner.username if project.owner else "Unknown",
             is_active=project.is_active,

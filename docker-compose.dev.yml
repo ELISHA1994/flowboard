@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Development reverse proxy to handle cookie issues
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '3001:80'
+    volumes:
+      - ./nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - taskmanager-network
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - DATABASE_URL=postgresql://taskmanageruser:taskmanagerpass@postgres:5432/taskmanager
+      - REDIS_HOST=redis
+    ports:
+      - '8000:8000'
+    networks:
+      - taskmanager-network
+
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: taskmanager
+      POSTGRES_USER: taskmanageruser
+      POSTGRES_PASSWORD: taskmanagerpass
+    ports:
+      - '5432:5432'
+    networks:
+      - taskmanager-network
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - '6379:6379'
+    networks:
+      - taskmanager-network
+
+networks:
+  taskmanager-network:
+    driver: bridge

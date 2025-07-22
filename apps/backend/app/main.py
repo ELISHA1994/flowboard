@@ -23,11 +23,12 @@ app = FastAPI(
 # Configure CORS - must be added before other middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Frontend URLs
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests
 )
 
 

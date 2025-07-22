@@ -136,6 +136,9 @@ class User(Base):
     task_activities = relationship(
         "TaskActivity", back_populates="user", cascade="all, delete-orphan"
     )
+    refresh_tokens = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Task(Base):
@@ -363,6 +366,7 @@ class Project(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
+    color = Column(String(7), nullable=True)  # Hex color code
     owner_id = Column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -896,4 +900,52 @@ class TaskActivity(Base):
         Index("ix_task_activities_task_type", "task_id", "activity_type"),
         Index("ix_task_activities_user_created", "user_id", "created_at"),
         Index("ix_task_activities_created_desc", created_at.desc()),
+    )
+
+
+class RefreshToken(Base):
+    """
+    SQLAlchemy model for RefreshToken table.
+    Stores refresh tokens for JWT authentication with rotation support.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+
+    # User association
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    # Token data - store hash, not plain text
+    token_hash = Column(String(255), unique=True, nullable=False, index=True)
+
+    # Token family for rotation detection
+    family = Column(String, nullable=False, index=True)
+
+    # Device/session information
+    device_name = Column(String(255), nullable=True)
+    device_type = Column(String(50), nullable=True)  # mobile, desktop, tablet
+    browser = Column(String(100), nullable=True)
+    ip_address = Column(String(45), nullable=True)  # IPv4/IPv6 support
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Revocation
+    is_revoked = Column(Boolean, default=False, nullable=False, index=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revoke_reason = Column(String(255), nullable=True)  # logout, security, admin, etc.
+
+    # Relationships
+    user = relationship("User", back_populates="refresh_tokens")
+
+    # Indexes for common queries
+    __table_args__ = (
+        Index("ix_refresh_tokens_user_not_revoked", "user_id", "is_revoked"),
+        Index("ix_refresh_tokens_family_not_revoked", "family", "is_revoked"),
+        Index("ix_refresh_tokens_expires_not_revoked", "expires_at", "is_revoked"),
     )

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Task } from '@/lib/api/tasks';
 import { useToastContext } from '@/contexts/toast-context';
+import { ApiClient } from '@/lib/api-client';
 
 interface TimeTrackingProps {
   task: Task;
@@ -83,23 +84,12 @@ export function TimeTracking({ task, onTimeLogged }: TimeTrackingProps) {
       setIsLogging(true);
 
       // Call API to log time
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/tasks/${task.id}/time`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({
-            hours_to_add: parseFloat(hours.toFixed(2)),
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to log time');
-      }
+      await ApiClient.fetchJSON(ApiClient.buildUrl(`/tasks/${task.id}/time`), {
+        method: 'POST',
+        body: JSON.stringify({
+          hours_to_add: parseFloat(hours.toFixed(2)),
+        }),
+      });
 
       toast({
         title: 'Time logged',
@@ -140,25 +130,14 @@ export function TimeTracking({ task, onTimeLogged }: TimeTrackingProps) {
       setIsLogging(true);
 
       // Call the more detailed analytics endpoint
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/analytics/tasks/${task.id}/time-log`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({
-            hours,
-            description: description || undefined,
-            logged_at: logDate.toISOString(),
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to log time');
-      }
+      await ApiClient.fetchJSON(ApiClient.buildUrl(`/analytics/tasks/${task.id}/time-log`), {
+        method: 'POST',
+        body: JSON.stringify({
+          hours,
+          description: description || undefined,
+          logged_at: logDate.toISOString(),
+        }),
+      });
 
       toast({
         title: 'Time logged',

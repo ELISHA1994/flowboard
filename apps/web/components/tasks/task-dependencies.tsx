@@ -37,6 +37,7 @@ import { Task, TasksService } from '@/lib/api/tasks';
 import { useToastContext } from '@/contexts/toast-context';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ApiClient } from '@/lib/api-client';
 
 interface TaskDependenciesProps {
   task: Task;
@@ -110,25 +111,15 @@ export function TaskDependencies({ task, onUpdate }: TaskDependenciesProps) {
     try {
       setAdding(true);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/tasks/${task.id}/dependencies`,
+      const newDependency = await ApiClient.fetchJSON(
+        ApiClient.buildUrl(`/tasks/${task.id}/dependencies`),
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
           body: JSON.stringify({
             depends_on_id: selectedTask.id,
           }),
         }
       );
-
-      if (!response.ok) {
-        throw new Error('Failed to add dependency');
-      }
-
-      const newDependency = await response.json();
       setDependencies([...dependencies, newDependency]);
 
       toast({
@@ -158,19 +149,12 @@ export function TaskDependencies({ task, onUpdate }: TaskDependenciesProps) {
   // Remove dependency
   const removeDependency = async (dependencyId: string) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/tasks/${task.id}/dependencies/${dependencyId}`,
+      await ApiClient.fetchJSON(
+        ApiClient.buildUrl(`/tasks/${task.id}/dependencies/${dependencyId}`),
         {
           method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
         }
       );
-
-      if (!response.ok) {
-        throw new Error('Failed to remove dependency');
-      }
 
       setDependencies(dependencies.filter((dep) => dep.id !== dependencyId));
 

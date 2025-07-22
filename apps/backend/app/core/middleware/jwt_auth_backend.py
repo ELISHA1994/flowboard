@@ -60,13 +60,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 
 def verify_token(token: str) -> Optional[str]:
-    """Verify JWT token and return username"""
+    """Verify JWT token and return user ID"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        user_id: str = payload.get("sub")
+        if user_id is None:
             return None
-        return username
+        return user_id
     except JWTError:
         return None
 
@@ -81,11 +81,11 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    username = verify_token(token)
-    if username is None:
+    user_id = verify_token(token)
+    if user_id is None:
         raise credentials_exception
 
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
 

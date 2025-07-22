@@ -1,7 +1,5 @@
-import { AuthService } from '@/lib/auth';
+import { ApiClient } from '@/lib/api-client';
 import { Task } from './tasks';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface TaskSearchFilter {
   field: string;
@@ -47,37 +45,14 @@ export interface SearchSuggestions {
 }
 
 export class SearchService {
-  private static async fetchWithAuth(url: string, options: RequestInit = {}) {
-    const token = AuthService.getToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(error.detail || `Request failed with status ${response.status}`);
-    }
-
-    return response.json();
-  }
-
   static async searchTasks(params: TaskSearchRequest): Promise<TaskSearchResponse> {
-    return this.fetchWithAuth(`${API_BASE_URL}/search/tasks`, {
+    return ApiClient.fetchJSON(ApiClient.buildUrl('/search/tasks'), {
       method: 'POST',
       body: JSON.stringify(params),
     });
   }
 
   static async getSearchSuggestions(): Promise<SearchSuggestions> {
-    return this.fetchWithAuth(`${API_BASE_URL}/search/suggestions`);
+    return ApiClient.fetchJSON(ApiClient.buildUrl('/search/suggestions'));
   }
 }
