@@ -17,6 +17,8 @@ import {
   Inbox,
   Plus,
   Search,
+  Hash,
+  Folder,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,6 +29,8 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'My Tasks', href: '/tasks', icon: CheckSquare },
+  { name: 'Categories', href: '/categories', icon: Folder },
+  { name: 'Tags', href: '/tags', icon: Hash },
   { name: 'Inbox', href: '/inbox', icon: Inbox },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Projects', href: '/projects', icon: Users },

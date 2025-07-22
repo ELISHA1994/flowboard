@@ -48,10 +48,8 @@ export function BulkCreateTagsModal({ open, onOpenChange }: BulkCreateTagsModalP
   const createBulkTags = useCreateBulkTagsMutation();
   const [formData, setFormData] = useState<{
     names: string;
-    color: string;
   }>({
     names: '',
-    color: TAG_COLORS[10], // Default blue
   });
   const [error, setError] = useState('');
 
@@ -87,8 +85,7 @@ export function BulkCreateTagsModal({ open, onOpenChange }: BulkCreateTagsModalP
     }
 
     const bulkData: BulkTagCreate = {
-      names: uniqueTagNames,
-      color: formData.color,
+      tag_names: uniqueTagNames,
     };
 
     await createBulkTags.mutateAsync(bulkData);
@@ -97,7 +94,6 @@ export function BulkCreateTagsModal({ open, onOpenChange }: BulkCreateTagsModalP
     if (!createBulkTags.error) {
       setFormData({
         names: '',
-        color: TAG_COLORS[10],
       });
       onOpenChange(false);
     }
@@ -106,7 +102,6 @@ export function BulkCreateTagsModal({ open, onOpenChange }: BulkCreateTagsModalP
   const handleCancel = () => {
     setFormData({
       names: '',
-      color: TAG_COLORS[10],
     });
     setError('');
     createBulkTags.reset();
@@ -129,7 +124,7 @@ export function BulkCreateTagsModal({ open, onOpenChange }: BulkCreateTagsModalP
           <DialogHeader>
             <DialogTitle>Bulk Create Tags</DialogTitle>
             <DialogDescription>
-              Create multiple tags at once. All tags will have the same color.
+              Create multiple tags at once. Tags will be created with a default color.
             </DialogDescription>
           </DialogHeader>
 
@@ -166,26 +161,6 @@ export function BulkCreateTagsModal({ open, onOpenChange }: BulkCreateTagsModalP
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label>Color (for all tags)</Label>
-              <div className="grid grid-cols-9 gap-2">
-                {TAG_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`h-8 w-8 rounded-md border-2 transition-all ${
-                      formData.color === color
-                        ? 'border-gray-900 dark:border-gray-100 scale-110'
-                        : 'border-transparent hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setFormData({ ...formData, color })}
-                    disabled={createBulkTags.isPending}
-                  />
-                ))}
-              </div>
-            </div>
-
             {/* Preview */}
             {previewTags.length > 0 && (
               <div className="grid gap-2">
@@ -196,8 +171,8 @@ export function BulkCreateTagsModal({ open, onOpenChange }: BulkCreateTagsModalP
                       key={index}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium"
                       style={{
-                        backgroundColor: formData.color + '20',
-                        color: formData.color,
+                        backgroundColor: '#80808020',
+                        color: '#808080',
                       }}
                     >
                       <Hash className="h-3 w-3" />

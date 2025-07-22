@@ -24,8 +24,7 @@ export interface TagWithTasks extends Tag {
 }
 
 export interface BulkTagCreate {
-  names: string[];
-  color?: string;
+  tag_names: string[];
 }
 
 export interface PopularTag extends Tag {
