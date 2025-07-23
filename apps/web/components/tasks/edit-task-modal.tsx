@@ -53,10 +53,9 @@ interface EditTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: Task | null;
-  onTaskUpdated?: () => void;
 }
 
-export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditTaskModalProps) {
+export function EditTaskModal({ open, onOpenChange, task }: EditTaskModalProps) {
   const router = useRouter();
   const updateTaskMutation = useUpdateTaskMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
@@ -162,11 +161,6 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
         onSuccess: () => {
           // Close modal
           onOpenChange(false);
-
-          // Notify parent component (optional now since React Query handles updates)
-          if (onTaskUpdated) {
-            onTaskUpdated();
-          }
         },
       }
     );
@@ -198,11 +192,6 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
         // Close both dialogs
         setShowDeleteDialog(false);
         onOpenChange(false);
-
-        // Notify parent component (optional now since React Query handles updates)
-        if (onTaskUpdated) {
-          onTaskUpdated();
-        }
       },
       onError: () => {
         // Close delete dialog on error

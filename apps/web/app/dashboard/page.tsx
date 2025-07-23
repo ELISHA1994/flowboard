@@ -453,23 +453,18 @@ export default function DashboardPage() {
       </div>
 
       {/* Create Task Modal */}
-      <CreateTaskModal
-        open={createModalOpen}
-        onOpenChange={setCreateModalOpen}
-        onTaskCreated={() => {
-          // React Query will automatically refetch after mutations
-        }}
-      />
+      <CreateTaskModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
 
       {/* Edit Task Modal */}
       <EditTaskModal
         open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        task={selectedTask}
-        onTaskUpdated={() => {
-          // React Query will automatically refetch after mutations
-          setSelectedTask(null);
+        onOpenChange={(open) => {
+          setEditModalOpen(open);
+          if (!open) {
+            setSelectedTask(null);
+          }
         }}
+        task={selectedTask}
       />
     </DashboardLayout>
   );

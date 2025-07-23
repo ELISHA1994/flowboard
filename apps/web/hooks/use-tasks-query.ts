@@ -192,10 +192,22 @@ export function useUpdateTaskMutation() {
       });
     },
     onSuccess: (data, variables) => {
-      // Invalidate queries to ensure consistency
-      queryClient.invalidateQueries({ queryKey: taskKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      // Update the optimistically updated data with the real server response
+      queryClient.setQueryData(taskKeys.detail(variables.id), data);
+
+      // Update the task in lists with the server response
+      queryClient.setQueriesData({ queryKey: taskKeys.lists() }, (old: any) => {
+        if (!old || !old.tasks) return old;
+        return {
+          ...old,
+          tasks: old.tasks.map((task: Task) => (task.id === variables.id ? data : task)),
+        };
+      });
+
+      // Only invalidate queries that couldn't be optimistically updated
       queryClient.invalidateQueries({ queryKey: taskKeys.statistics() });
+      queryClient.invalidateQueries({ queryKey: taskKeys.recent(5) });
+      queryClient.invalidateQueries({ queryKey: taskKeys.upcoming(7) });
 
       toast({
         title: 'Task updated',
@@ -242,9 +254,11 @@ export function useDeleteTaskMutation() {
         variant: 'destructive',
       });
     },
-    onSuccess: () => {
-      // Invalidate all task-related queries
-      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+    onSuccess: (data, deletedId) => {
+      // Remove the task from detail cache if it exists
+      queryClient.removeQueries({ queryKey: taskKeys.detail(deletedId) });
+
+      // Only invalidate queries that couldn't be optimistically updated
       queryClient.invalidateQueries({ queryKey: taskKeys.statistics() });
       queryClient.invalidateQueries({ queryKey: taskKeys.recent(5) });
       queryClient.invalidateQueries({ queryKey: taskKeys.upcoming(7) });
@@ -266,9 +280,8 @@ export function useBulkUpdateTasksMutation() {
     mutationFn: ({ ids, data }: { ids: string[]; data: UpdateTaskRequest }) =>
       TasksService.bulkUpdateTasks(ids, data),
     onSuccess: () => {
-      // Invalidate all task queries to ensure consistency
+      // Bulk operations require full cache invalidation for consistency
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
-      queryClient.invalidateQueries({ queryKey: taskKeys.statistics() });
 
       toast({
         title: 'Tasks updated',
@@ -293,11 +306,8 @@ export function useBulkDeleteTasksMutation() {
   return useMutation({
     mutationFn: (ids: string[]) => TasksService.bulkDeleteTasks(ids),
     onSuccess: () => {
-      // Invalidate all task queries
+      // Bulk operations require full cache invalidation for consistency
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
-      queryClient.invalidateQueries({ queryKey: taskKeys.statistics() });
-      queryClient.invalidateQueries({ queryKey: taskKeys.recent(5) });
-      queryClient.invalidateQueries({ queryKey: taskKeys.upcoming(7) });
 
       toast({
         title: 'Tasks deleted',

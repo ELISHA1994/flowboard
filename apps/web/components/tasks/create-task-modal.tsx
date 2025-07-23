@@ -41,16 +41,10 @@ import { cn } from '@/lib/utils';
 interface CreateTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTaskCreated?: () => void;
   defaultProjectId?: string;
 }
 
-export function CreateTaskModal({
-  open,
-  onOpenChange,
-  onTaskCreated,
-  defaultProjectId,
-}: CreateTaskModalProps) {
+export function CreateTaskModal({ open, onOpenChange, defaultProjectId }: CreateTaskModalProps) {
   const router = useRouter();
   const createTaskMutation = useCreateTaskMutation();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -143,11 +137,6 @@ export function CreateTaskModal({
 
         // Close modal
         onOpenChange(false);
-
-        // Notify parent component (optional now since React Query handles updates)
-        if (onTaskCreated) {
-          onTaskCreated();
-        }
       },
     });
   };
