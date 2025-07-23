@@ -1,0 +1,331 @@
+/* React Big Calendar Custom Styles */
+
+/* Base calendar styles */
+.rbc-calendar {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: inherit;
+}
+
+/* Header styles */
+.rbc-header {
+  background-color: hsl(var(--muted) / 0.5);
+  color: hsl(var(--muted-foreground));
+  @apply font-medium text-center py-2;
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 0.875rem;
+}
+
+.rbc-header + .rbc-header {
+  border-left: 1px solid hsl(var(--border));
+}
+
+/* Month view styles */
+.rbc-month-view {
+  border: 1px solid hsl(var(--border));
+  @apply rounded-lg overflow-hidden;
+}
+
+.rbc-date-cell {
+  color: hsl(var(--muted-foreground));
+  @apply text-right text-xs p-1;
+}
+
+.rbc-date-cell.rbc-off-range {
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+.rbc-date-cell.rbc-off-range-bg {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+.rbc-date-cell.rbc-current {
+  color: hsl(var(--primary));
+  @apply font-semibold;
+}
+
+.rbc-today {
+  background-color: hsl(var(--primary) / 0.1);
+}
+
+.rbc-today .rbc-date-cell {
+  color: hsl(var(--primary));
+  @apply font-semibold;
+}
+
+/* Week and day view styles */
+.rbc-time-view {
+  @apply border border-border rounded-lg overflow-hidden;
+}
+
+.rbc-time-header {
+  @apply border-b border-border;
+}
+
+.rbc-time-header-content {
+  @apply border-l border-border;
+}
+
+.rbc-time-header-cell {
+  @apply text-center py-2 text-sm text-muted-foreground;
+}
+
+.rbc-time-content {
+  @apply border-l border-border;
+}
+
+.rbc-time-slot {
+  @apply border-b border-border/30;
+  font-size: 0.75rem;
+}
+
+.rbc-time-slot.rbc-time-slot-now {
+  @apply bg-primary/5;
+}
+
+.rbc-current-time-indicator {
+  @apply bg-primary h-0.5;
+}
+
+.rbc-timeslot-group {
+  @apply border-b border-border/50;
+}
+
+/* Event styles */
+.rbc-event {
+  @apply rounded text-xs font-medium;
+  padding: 2px 4px;
+  border: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.rbc-event:hover {
+  @apply shadow-md;
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.rbc-event.rbc-selected {
+  @apply shadow-lg ring-2 ring-primary/50;
+  transform: translateY(-1px);
+}
+
+.rbc-event-allday {
+  @apply rounded-sm;
+  padding: 1px 4px;
+}
+
+.rbc-event-continues-prior {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.rbc-event-continues-after {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Agenda view styles */
+.rbc-agenda-view {
+  @apply border border-border rounded-lg overflow-hidden;
+}
+
+.rbc-agenda-table {
+  @apply w-full;
+}
+
+.rbc-agenda-table thead {
+  background-color: hsl(var(--muted));
+}
+
+.rbc-agenda-table th {
+  color: hsl(var(--muted-foreground));
+  border-bottom: 1px solid hsl(var(--border));
+  @apply text-left font-medium text-sm p-3;
+}
+
+.rbc-agenda-table td {
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  @apply p-3 text-sm;
+}
+
+.rbc-agenda-table tr:hover {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+.rbc-agenda-date-cell {
+  @apply font-medium text-muted-foreground w-24;
+}
+
+.rbc-agenda-time-cell {
+  @apply text-muted-foreground w-20 text-xs;
+}
+
+.rbc-agenda-event-cell {
+  @apply w-full;
+}
+
+/* Show more link */
+.rbc-show-more {
+  @apply text-primary text-xs font-medium cursor-pointer hover:underline p-1;
+}
+
+/* Popup styles */
+.rbc-overlay {
+  background-color: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  @apply rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto;
+  z-index: 1000;
+}
+
+.rbc-overlay-header {
+  color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--border));
+  @apply text-sm font-medium mb-2 pb-2;
+}
+
+/* Toolbar custom styles (handled by CalendarToolbar component) */
+.rbc-toolbar {
+  display: none; /* Hide default toolbar */
+}
+
+/* Selection styles */
+.rbc-slot-selecting {
+  @apply bg-primary/20;
+}
+
+.rbc-slot-selection {
+  @apply bg-primary/30 border border-primary/50;
+}
+
+/* Drag and drop styles */
+.rbc-addons-dnd .rbc-event {
+  @apply cursor-move;
+}
+
+.rbc-addons-dnd .rbc-event:hover {
+  @apply shadow-lg;
+}
+
+.rbc-addons-dnd-drag-preview .rbc-event {
+  @apply opacity-80 shadow-xl;
+  transform: rotate(5deg);
+}
+
+.rbc-addons-dnd-dragged-event {
+  @apply opacity-50;
+}
+
+.rbc-addons-dnd-over {
+  @apply bg-primary/10;
+}
+
+/* Time gutter */
+.rbc-time-gutter {
+  @apply text-xs text-muted-foreground;
+  white-space: nowrap;
+}
+
+.rbc-time-gutter .rbc-timeslot-group {
+  @apply text-right pr-2;
+}
+
+/* Now indicator */
+.rbc-current-time-indicator {
+  @apply bg-primary;
+  height: 2px;
+  z-index: 3;
+}
+
+/* Custom today highlight */
+.rbc-today-highlight {
+  @apply bg-primary/5;
+}
+
+/* Loading state */
+.calendar-loading {
+  @apply opacity-50 pointer-events-none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .rbc-calendar {
+    font-size: 0.75rem;
+  }
+  
+  .rbc-event {
+    padding: 1px 2px;
+    font-size: 0.7rem;
+  }
+  
+  .rbc-header {
+    padding: 0.25rem;
+    font-size: 0.75rem;
+  }
+  
+  .rbc-date-cell {
+    font-size: 0.7rem;
+  }
+  
+  .rbc-time-slot {
+    font-size: 0.7rem;
+  }
+  
+  .rbc-agenda-table td,
+  .rbc-agenda-table th {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .rbc-calendar {
+    color-scheme: dark;
+  }
+}
+
+/* Animation for event interactions */
+.rbc-event {
+  transition: all 0.2s ease-in-out;
+}
+
+.rbc-event:active {
+  transform: scale(0.98);
+}
+
+/* Focus styles for accessibility */
+.rbc-event:focus {
+  @apply outline-none ring-2 ring-primary/50;
+}
+
+.rbc-date-cell:focus {
+  @apply outline-none ring-2 ring-primary/50 ring-inset;
+}
+
+/* Calendar container styles */
+.calendar-container .calendar-wrapper {
+  background-color: hsl(var(--card));
+}
+
+.calendar-wrapper .rbc-calendar {
+  height: 100% !important;
+}
+
+/* Print styles */
+@media print {
+  .rbc-toolbar,
+  .calendar-toolbar {
+    display: none !important;
+  }
+  
+  .rbc-calendar {
+    @apply text-black bg-white;
+  }
+  
+  .rbc-event {
+    @apply border border-gray-400 !important;
+    background-color: white !important;
+    color: black !important;
+  }
+}

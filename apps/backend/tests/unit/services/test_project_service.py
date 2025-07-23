@@ -379,6 +379,7 @@ class TestProjectService:
         project.id = "project123"
         project.name = "Test Project"
         project.description = "Test description"
+        project.color = "#FF5733"  # Add color attribute
         project.owner_id = user_id
         project.owner = Mock(spec=User, id=user_id, username="testuser")
         project.is_active = True
@@ -411,6 +412,7 @@ class TestProjectService:
         project.id = "project123"
         project.name = "Test Project"
         project.description = "Test description"
+        project.color = "#FF5733"  # Add color attribute
         project.owner_id = user_id
         project.owner = Mock(
             spec=User, id=user_id, username="owner", email="owner@example.com"

@@ -798,7 +798,7 @@ async def list_tasks(
         None, description="Filter by assigned user ID"
     ),
     sort_by: str = Query(
-        "position", description="Sort by: position, due_date, priority, created_at"
+        "position", description="Sort by: position, due_date, priority, created_at, updated_at, updated_at:desc"
     ),
     skip: int = Query(0, ge=0, description="Number of tasks to skip"),
     limit: int = Query(10, ge=1, le=100, description="Number of tasks to return"),
@@ -851,6 +851,10 @@ async def list_tasks(
         query = query.order_by(TaskModel.priority)
     elif sort_by == "created_at":
         query = query.order_by(TaskModel.created_at.desc())
+    elif sort_by == "updated_at:desc":
+        query = query.order_by(TaskModel.updated_at.desc())
+    elif sort_by == "updated_at":
+        query = query.order_by(TaskModel.updated_at.asc())
     else:  # Default to position
         query = query.order_by(TaskModel.position)
 

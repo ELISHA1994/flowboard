@@ -35,7 +35,7 @@ class TestAuthEdgeCases:
 
         # Create a valid token
         access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=timedelta(minutes=30)
+            data={"sub": user.id}, expires_delta=timedelta(minutes=30)
         )
 
         # Delete the user from database
@@ -66,7 +66,7 @@ class TestAuthEdgeCases:
 
         # Create a valid token
         access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=timedelta(minutes=30)
+            data={"sub": user.id}, expires_delta=timedelta(minutes=30)
         )
 
         # Try to access an endpoint that requires active user
@@ -83,10 +83,10 @@ class TestAuthEdgeCases:
     def test_token_with_nonexistent_username(
         self, test_client: TestClient, test_db: Session
     ):
-        """Test case where token contains username that never existed."""
-        # Create a token with a username that doesn't exist
+        """Test case where token contains user ID that never existed."""
+        # Create a token with a user ID that doesn't exist
         access_token = create_access_token(
-            data={"sub": "nonexistentuser"}, expires_delta=timedelta(minutes=30)
+            data={"sub": "nonexistent-user-id-123"}, expires_delta=timedelta(minutes=30)
         )
 
         # Try to access protected endpoint

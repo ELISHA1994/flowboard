@@ -114,6 +114,7 @@ export function TaskReminders({ task, className }: TaskRemindersProps) {
               Reminders
             </h3>
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => setCreateModalOpen(true)}
@@ -134,7 +135,12 @@ export function TaskReminders({ task, className }: TaskRemindersProps) {
             <div className="text-center py-6">
               <Bell className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground mb-3">No reminders set</p>
-              <Button variant="outline" size="sm" onClick={() => setCreateModalOpen(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateModalOpen(true)}
+              >
                 <Plus className="h-4 w-4 mr-1" />
                 Add Reminder
               </Button>
@@ -190,7 +196,12 @@ export function TaskReminders({ task, className }: TaskRemindersProps) {
                         {!reminder.sent && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
                                 <MoreVertical className="h-4 w-4" />
                                 <span className="sr-only">Open menu</span>
                               </Button>

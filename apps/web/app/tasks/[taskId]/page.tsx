@@ -490,7 +490,9 @@ export default function TaskDetailPage() {
               <div>
                 <h3 className="mb-2 text-sm font-medium text-muted-foreground">Last Updated</h3>
                 <p className="text-sm">
-                  {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true })}
+                  {task.updated_at && task.updated_at !== null
+                    ? formatDistanceToNow(new Date(task.updated_at), { addSuffix: true })
+                    : format(new Date(task.created_at), 'MMM d, yyyy h:mm a')}
                 </p>
               </div>
             </div>

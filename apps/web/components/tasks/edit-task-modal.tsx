@@ -138,6 +138,14 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
     }
 
     // Prepare the data - convert empty strings to undefined
+    // Convert tag IDs to tag names for the backend
+    const tagNames = selectedTags
+      .map((tagId) => {
+        const tag = tags.find((t) => t.id === tagId);
+        return tag ? tag.name : '';
+      })
+      .filter((name) => name !== '');
+
     const taskData: UpdateTaskRequest = {
       ...formData,
       description: formData.description || undefined,
@@ -145,7 +153,7 @@ export function EditTaskModal({ open, onOpenChange, task, onTaskUpdated }: EditT
       start_date: formData.start_date || undefined,
       estimated_hours: formData.estimated_hours || undefined,
       category_ids: selectedCategories,
-      tag_ids: selectedTags,
+      tag_names: tagNames, // Use tag_names instead of tag_ids
     };
 
     updateTaskMutation.mutate(

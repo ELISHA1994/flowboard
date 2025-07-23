@@ -104,7 +104,7 @@ def test_user_token(test_user: User) -> str:
     """
     access_token_expires = timedelta(minutes=30)
     return create_access_token(
-        data={"sub": test_user.username}, expires_delta=access_token_expires
+        data={"sub": test_user.id}, expires_delta=access_token_expires
     )
 
 
@@ -154,7 +154,7 @@ def second_user_token(second_user: User) -> str:
     """
     access_token_expires = timedelta(minutes=30)
     return create_access_token(
-        data={"sub": second_user.username}, expires_delta=access_token_expires
+        data={"sub": second_user.id}, expires_delta=access_token_expires
     )
 
 

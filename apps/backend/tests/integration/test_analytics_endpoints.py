@@ -123,13 +123,13 @@ class TestAnalyticsEndpoints:
 
         # Verify statistics
         assert data["total_tasks"] == 5
-        assert data["status_breakdown"]["todo"] == 3
-        assert data["status_breakdown"]["in_progress"] == 1
-        assert data["status_breakdown"]["done"] == 1
-        assert data["priority_breakdown"]["low"] == 1
-        assert data["priority_breakdown"]["medium"] == 1
-        assert data["priority_breakdown"]["high"] == 2
-        assert data["priority_breakdown"]["urgent"] == 1
+        assert data["tasks_by_status"]["todo"] == 3
+        assert data["tasks_by_status"]["in_progress"] == 1
+        assert data["tasks_by_status"]["done"] == 1
+        assert data["tasks_by_priority"]["low"] == 1
+        assert data["tasks_by_priority"]["medium"] == 1
+        assert data["tasks_by_priority"]["high"] == 2
+        assert data["tasks_by_priority"]["urgent"] == 1
         assert data["completion_rate"] == 20.0  # 1 out of 5
         assert data["overdue_tasks"] == 1
 

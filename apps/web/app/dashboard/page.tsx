@@ -415,7 +415,14 @@ export default function DashboardPage() {
                       <div className="w-24 text-sm font-medium text-muted-foreground">{date}</div>
                       <div className="flex-1 space-y-2">
                         {tasks.map((task) => (
-                          <div key={task.id} className="flex items-center space-x-2 text-sm">
+                          <div
+                            key={task.id}
+                            className="flex items-center space-x-2 text-sm p-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              setSelectedTask(task);
+                              setEditModalOpen(true);
+                            }}
+                          >
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span className="flex-1">{task.title}</span>
                             <span

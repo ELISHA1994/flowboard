@@ -93,7 +93,7 @@ export interface CreateTaskRequest {
   assigned_to_id?: string;
   project_id?: string;
   parent_task_id?: string;
-  tag_ids?: string[];
+  tag_names?: string[]; // Backend expects tag names, not IDs
   category_ids?: string[];
 }
 
@@ -116,6 +116,8 @@ export class TasksService {
     sort_by?: string;
     skip?: number;
     limit?: number;
+    due_before?: string | Date;
+    due_after?: string | Date;
   }): Promise<TasksResponse> {
     const queryParams = new URLSearchParams();
 
@@ -133,6 +135,10 @@ export class TasksService {
           // Handle arrays for category_ids and tag_ids
           if ((key === 'category_ids' || key === 'tag_ids') && Array.isArray(value)) {
             value.forEach((id) => queryParams.append(mappedKey, id));
+          } else if (key === 'due_before' || key === 'due_after') {
+            // Handle date parameters - convert to ISO string if Date object
+            const dateValue = value instanceof Date ? value.toISOString() : value.toString();
+            queryParams.append(mappedKey, dateValue);
           } else {
             queryParams.append(mappedKey, value.toString());
           }
@@ -204,7 +210,7 @@ export class TasksService {
   static async getRecentTasks(limit: number = 5): Promise<Task[]> {
     const response = await this.getTasks({
       limit,
-      // Sort by updated_at desc would be ideal, but if not available, we'll get the latest
+      sort_by: 'updated_at:desc',
     });
     return response.tasks;
   }
