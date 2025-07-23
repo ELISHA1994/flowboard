@@ -169,10 +169,12 @@ class RefreshTokenService:
             access_token = UserService.create_access_token(user_id)
 
             # Generate new refresh token with same family
-            new_refresh_token, _, new_expiry = (
-                RefreshTokenService.create_refresh_token_with_family(
-                    db, user_id, family, device_info
-                )
+            (
+                new_refresh_token,
+                _,
+                new_expiry,
+            ) = RefreshTokenService.create_refresh_token_with_family(
+                db, user_id, family, device_info
             )
 
             db.commit()

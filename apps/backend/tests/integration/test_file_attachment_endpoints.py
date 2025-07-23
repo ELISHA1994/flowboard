@@ -17,25 +17,27 @@ from app.db.models import FileAttachment, Task, User
 class TestFileUpload:
     """Test file upload functionality"""
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_upload_file_success(
         self, test_client: TestClient, test_user_token: str, test_task: Task
     ):
         """Test successful file upload"""
         # Create a test file
         file_content = b"This is a test file content"
-        
+
         # Create files data with proper format for TestClient
         files = {"file": ("test_document.txt", file_content, "text/plain")}
-        
+
         # TestClient requires headers to be set on the client instance for file uploads
         test_client.headers.update({"Authorization": f"Bearer {test_user_token}"})
-        
+
         response = test_client.post(
             f"/tasks/{test_task.id}/attachments",
             files=files,
         )
-        
+
         # Clean up headers
         test_client.headers.pop("Authorization", None)
 
@@ -54,7 +56,9 @@ class TestFileUpload:
         # Clean up
         os.remove(file_path)
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_upload_large_file(
         self, test_client: TestClient, test_user_token: str, test_task: Task
     ):
@@ -93,7 +97,9 @@ class TestFileUpload:
             # If no JSON response, just verify the status code
             pass
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_upload_invalid_filename(
         self, test_client: TestClient, test_user_token: str, test_task: Task
     ):
@@ -141,7 +147,9 @@ class TestFileUpload:
 
         assert response.status_code == 403
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_upload_to_shared_task(
         self,
         test_client: TestClient,
@@ -190,7 +198,9 @@ class TestFileUpload:
 class TestFileList:
     """Test listing file attachments"""
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_list_task_attachments(
         self, test_client: TestClient, test_user_token: str, test_task: Task
     ):
@@ -246,7 +256,9 @@ class TestFileList:
 class TestFileDownload:
     """Test file download functionality"""
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_download_file_success(
         self, test_client: TestClient, test_user_token: str, test_task: Task
     ):
@@ -292,7 +304,9 @@ class TestFileDownload:
 
         assert response.status_code == 404
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_download_permission_denied(
         self,
         test_client: TestClient,
@@ -330,7 +344,9 @@ class TestFileDownload:
 class TestFileDelete:
     """Test file deletion functionality"""
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_delete_file_success(
         self, test_client: TestClient, test_user_token: str, test_task: Task
     ):
@@ -369,7 +385,9 @@ class TestFileDelete:
         )
         assert list_response.json()["total"] == 0
 
-    @pytest.mark.skip(reason="TestClient has issues with multipart/form-data and auth headers")
+    @pytest.mark.skip(
+        reason="TestClient has issues with multipart/form-data and auth headers"
+    )
     def test_delete_permission_denied(
         self,
         test_client: TestClient,

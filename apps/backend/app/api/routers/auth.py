@@ -225,9 +225,12 @@ async def refresh_token(
     device_info = get_device_info(request)
 
     # Validate and rotate token
-    new_access_token, new_refresh_token, family, expires_at = (
-        RefreshTokenService.validate_and_rotate_token(db, refresh_token, device_info)
-    )
+    (
+        new_access_token,
+        new_refresh_token,
+        family,
+        expires_at,
+    ) = RefreshTokenService.validate_and_rotate_token(db, refresh_token, device_info)
 
     if not new_access_token:
         # Clear cookies on failure

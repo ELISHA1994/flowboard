@@ -252,25 +252,25 @@
   .rbc-calendar {
     font-size: 0.75rem;
   }
-  
+
   .rbc-event {
     padding: 1px 2px;
     font-size: 0.7rem;
   }
-  
+
   .rbc-header {
     padding: 0.25rem;
     font-size: 0.75rem;
   }
-  
+
   .rbc-date-cell {
     font-size: 0.7rem;
   }
-  
+
   .rbc-time-slot {
     font-size: 0.7rem;
   }
-  
+
   .rbc-agenda-table td,
   .rbc-agenda-table th {
     padding: 0.5rem;
@@ -318,11 +318,11 @@
   .calendar-toolbar {
     display: none !important;
   }
-  
+
   .rbc-calendar {
     @apply text-black bg-white;
   }
-  
+
   .rbc-event {
     @apply border border-gray-400 !important;
     background-color: white !important;

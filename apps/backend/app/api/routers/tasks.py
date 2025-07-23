@@ -798,7 +798,8 @@ async def list_tasks(
         None, description="Filter by assigned user ID"
     ),
     sort_by: str = Query(
-        "position", description="Sort by: position, due_date, priority, created_at, updated_at, updated_at:desc"
+        "position",
+        description="Sort by: position, due_date, priority, created_at, updated_at, updated_at:desc",
     ),
     skip: int = Query(0, ge=0, description="Number of tasks to skip"),
     limit: int = Query(10, ge=1, le=100, description="Number of tasks to return"),
