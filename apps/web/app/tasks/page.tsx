@@ -72,6 +72,7 @@ import { ShareTaskModal } from '@/components/tasks/share-task-modal';
 import { AdvancedFiltersModal, AdvancedFilters } from '@/components/tasks/advanced-filters-modal';
 import { SavedSearches } from '@/components/tasks/saved-searches';
 import { BulkOperationsModal, BulkOperation } from '@/components/tasks/bulk-operations-modal';
+import { TaskDetailModal } from '@/components/tasks/task-detail-modal';
 
 type ViewMode = 'list' | 'board' | 'calendar';
 
@@ -99,6 +100,8 @@ export default function TasksPage() {
   const [taskToShare, setTaskToShare] = useState<Task | null>(null);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [bulkOperationsOpen, setBulkOperationsOpen] = useState(false);
+  const [taskDetailModalOpen, setTaskDetailModalOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     searchQuery: '',
     status: 'all',
@@ -753,7 +756,10 @@ export default function TasksPage() {
                     'group flex items-center gap-4 px-6 py-3 hover:bg-muted/50 cursor-pointer',
                     selectedTasks.includes(task.id) && 'bg-muted/50'
                   )}
-                  onClick={() => router.push(`/tasks/${task.id}`)}
+                  onClick={() => {
+                    setSelectedTaskId(task.id);
+                    setTaskDetailModalOpen(true);
+                  }}
                 >
                   <Checkbox
                     checked={selectedTasks.includes(task.id)}
@@ -811,11 +817,12 @@ export default function TasksPage() {
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/tasks/${task.id}`);
+                            setSelectedTaskId(task.id);
+                            setTaskDetailModalOpen(true);
                           }}
                         >
                           <Edit className="mr-2 h-4 w-4" />
-                          Edit
+                          View Details
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={(e) => {
@@ -895,7 +902,10 @@ export default function TasksPage() {
                         <div
                           key={task.id}
                           className="group rounded-lg border bg-card p-3 hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => router.push(`/tasks/${task.id}`)}
+                          onClick={() => {
+                            setSelectedTaskId(task.id);
+                            setTaskDetailModalOpen(true);
+                          }}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
@@ -914,11 +924,12 @@ export default function TasksPage() {
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    router.push(`/tasks/${task.id}`);
+                                    setSelectedTaskId(task.id);
+                                    setTaskDetailModalOpen(true);
                                   }}
                                 >
                                   <Edit className="mr-2 h-4 w-4" />
-                                  Edit
+                                  View Details
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={(e) => {
@@ -997,7 +1008,10 @@ export default function TasksPage() {
             <div className="p-6">
               <TaskCalendar
                 tasks={filteredTasks}
-                onTaskClick={(task) => router.push(`/tasks/${task.id}`)}
+                onTaskClick={(task) => {
+                  setSelectedTaskId(task.id);
+                  setTaskDetailModalOpen(true);
+                }}
               />
             </div>
           ) : null}
@@ -1050,6 +1064,20 @@ export default function TasksPage() {
           categories={categories}
           tags={tags}
           users={[]} // TODO: Add users list when user management is implemented
+        />
+
+        {/* Task Detail Modal */}
+        <TaskDetailModal
+          open={taskDetailModalOpen}
+          onOpenChange={setTaskDetailModalOpen}
+          taskId={selectedTaskId}
+          onTaskUpdated={() => {
+            // React Query will automatically refetch
+          }}
+          onNavigateToTask={(taskId) => {
+            setTaskDetailModalOpen(false);
+            router.push(`/tasks/${taskId}`);
+          }}
         />
       </div>
     </DashboardLayout>
