@@ -504,7 +504,7 @@ export function CreateTaskModal({ open, onOpenChange, defaultProjectId }: Create
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createTaskMutation.isPending}>
+            <Button type="submit" variant="primary" disabled={createTaskMutation.isPending}>
               {createTaskMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {createTaskMutation.isPending ? 'Creating...' : 'Create Task'}
             </Button>

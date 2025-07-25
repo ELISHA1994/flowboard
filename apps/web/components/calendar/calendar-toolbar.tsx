@@ -32,10 +32,16 @@ export function CalendarToolbar({
   ];
 
   return (
-    <div className="calendar-toolbar flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-gray-950 border-b">
+    <div className="calendar-toolbar">
       {/* Navigation Controls */}
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => onNavigate('prev')} disabled={isLoading}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onNavigate('prev')}
+          disabled={isLoading}
+          className="h-9 w-9"
+        >
           <ChevronLeft className="h-4 w-4" />
           <span className="sr-only">Previous</span>
         </Button>
@@ -45,12 +51,19 @@ export function CalendarToolbar({
           size="sm"
           onClick={() => onNavigate('today')}
           disabled={isLoading}
+          className="px-4"
         >
           <Calendar className="h-4 w-4 mr-2" />
           Today
         </Button>
 
-        <Button variant="outline" size="sm" onClick={() => onNavigate('next')} disabled={isLoading}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onNavigate('next')}
+          disabled={isLoading}
+          className="h-9 w-9"
+        >
           <ChevronRight className="h-4 w-4" />
           <span className="sr-only">Next</span>
         </Button>
@@ -59,13 +72,13 @@ export function CalendarToolbar({
       {/* Current Date/Range Label */}
       <div className="flex items-center gap-4">
         {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
-        <h3 className="text-lg font-semibold text-foreground">{label}</h3>
+        <h3 className="text-xl font-bold text-foreground">{label}</h3>
       </div>
 
       {/* View Switcher and Actions */}
       <div className="flex items-center gap-2">
         {/* View Buttons */}
-        <div className="hidden sm:flex items-center gap-1 bg-muted p-1 rounded-lg">
+        <div className="hidden sm:flex items-center gap-1 calendar-toolbar-views">
           {viewButtons.map(({ key, label: viewLabel }) => {
             // Check if view is available
             if (views && !views[key]) return null;
@@ -77,10 +90,7 @@ export function CalendarToolbar({
                 size="sm"
                 onClick={() => onView(key)}
                 disabled={isLoading}
-                className={cn(
-                  'text-xs h-7 px-2',
-                  view === key && 'bg-white dark:bg-gray-950 shadow-sm'
-                )}
+                className={cn('text-xs h-7 px-2', view === key && 'gradient-button shadow-sm')}
               >
                 {viewLabel}
               </Button>
@@ -109,10 +119,16 @@ export function CalendarToolbar({
 
         {/* Create Task Button */}
         {onCreateTask && (
-          <Button size="sm" onClick={onCreateTask} disabled={isLoading} className="ml-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onCreateTask}
+            disabled={isLoading}
+            className="ml-4 shadow-md"
+          >
             <Plus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">New Task</span>
-            <span className="sm:hidden">Task</span>
+            <span className="sm:hidden">New</span>
           </Button>
         )}
       </div>

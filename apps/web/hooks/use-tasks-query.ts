@@ -195,7 +195,7 @@ export function useUpdateTaskMutation() {
       // Update the optimistically updated data with the real server response
       queryClient.setQueryData(taskKeys.detail(variables.id), data);
 
-      // Update the task in lists with the server response
+      // Update the task in all list queries with the server response
       queryClient.setQueriesData({ queryKey: taskKeys.lists() }, (old: any) => {
         if (!old || !old.tasks) return old;
         return {
@@ -204,7 +204,14 @@ export function useUpdateTaskMutation() {
         };
       });
 
-      // Only invalidate queries that couldn't be optimistically updated
+      // Invalidate all task list queries to ensure fresh data
+      // This is important for queries with specific parameters (filters, sort, etc.)
+      queryClient.invalidateQueries({
+        queryKey: taskKeys.lists(),
+        refetchType: 'active', // Only refetch active queries
+      });
+
+      // Invalidate other related queries
       queryClient.invalidateQueries({ queryKey: taskKeys.statistics() });
       queryClient.invalidateQueries({ queryKey: taskKeys.recent(5) });
       queryClient.invalidateQueries({ queryKey: taskKeys.upcoming(7) });

@@ -243,7 +243,7 @@ alembic revision --autogenerate -m "description"  # Create new migration
 # Python environment setup
 python -m venv .venv   # Create virtual environment
 source .venv/bin/activate  # Activate virtual environment (Windows: .venv\Scripts\activate)
-pip install -r requirements.txt  # Install Python dependencies
+pip install -r requirements.txt  # Install Python dependencies-
 
 # Running tests from backend directory
 make test              # Run all backend tests

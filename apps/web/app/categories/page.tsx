@@ -76,7 +76,7 @@ export default function CategoriesPage() {
             <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
             <p className="text-muted-foreground">Organize your tasks with categories</p>
           </div>
-          <Button onClick={() => setCreateModalOpen(true)}>
+          <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New Category
           </Button>
@@ -117,7 +117,7 @@ export default function CategoriesPage() {
                   : 'Create your first category to get started'}
               </p>
               {!searchQuery && (
-                <Button onClick={() => setCreateModalOpen(true)} className="mt-4" variant="outline">
+                <Button onClick={() => setCreateModalOpen(true)} className="mt-4" variant="primary">
                   <Plus className="mr-2 h-4 w-4" />
                   Create Category
                 </Button>

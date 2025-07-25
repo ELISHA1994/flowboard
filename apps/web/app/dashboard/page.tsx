@@ -71,7 +71,7 @@ export default function DashboardPage() {
               Welcome back! Here&apos;s what&apos;s happening with your tasks today.
             </p>
           </div>
-          <Button onClick={() => setCreateModalOpen(true)}>
+          <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New Task
           </Button>

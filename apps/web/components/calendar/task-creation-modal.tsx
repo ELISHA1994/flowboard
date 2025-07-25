@@ -324,6 +324,7 @@ export function TaskCreationModal({
             </Button>
             <Button
               type="submit"
+              variant="primary"
               disabled={createTaskMutation.isPending || !formData.title?.trim()}
             >
               {createTaskMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -15,12 +15,12 @@ const statusIcons = {
   cancelled: X,
 };
 
-// Priority indicators
+// Priority indicators with enhanced colors
 const priorityIndicators = {
-  urgent: { color: 'text-red-500', icon: AlertTriangle },
-  high: { color: 'text-orange-500', icon: AlertTriangle },
-  medium: { color: 'text-blue-500', icon: Circle },
-  low: { color: 'text-green-500', icon: Circle },
+  urgent: { color: 'text-red-500', bgColor: 'bg-red-500/20', icon: AlertTriangle },
+  high: { color: 'text-orange-500', bgColor: 'bg-orange-500/20', icon: AlertTriangle },
+  medium: { color: 'text-blue-500', bgColor: 'bg-blue-500/20', icon: Circle },
+  low: { color: 'text-green-500', bgColor: 'bg-green-500/20', icon: Circle },
 };
 
 interface CalendarEventComponentProps extends EventProps<CalendarEvent> {
@@ -36,26 +36,30 @@ export function CalendarEventComponent({ event, className }: CalendarEventCompon
   return (
     <div
       className={cn(
-        'calendar-event h-full w-full flex items-center gap-1 p-1 text-xs font-medium overflow-hidden',
+        'calendar-event h-full w-full flex items-center gap-1.5 px-2 py-1 text-xs font-medium overflow-hidden transition-all',
+        'hover:shadow-md hover:scale-[1.02]',
+        task.status === 'done' && 'opacity-75',
         className
       )}
       style={{
-        backgroundColor: event.backgroundColor,
+        background: `linear-gradient(135deg, ${event.backgroundColor}dd, ${event.backgroundColor}99)`,
         color: event.textColor,
         border: `1px solid ${event.borderColor}`,
-        borderRadius: '3px',
-        opacity: task.status === 'done' ? 0.8 : 1,
+        borderRadius: '6px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
       }}
     >
       {/* Status Icon */}
-      <StatusIcon className="h-3 w-3 flex-shrink-0" />
+      <StatusIcon className="h-3 w-3 flex-shrink-0" strokeWidth={2.5} />
 
       {/* Task Title */}
-      <span className="flex-1 truncate font-medium">{event.title}</span>
+      <span className="flex-1 truncate font-semibold leading-tight">{event.title}</span>
 
       {/* Priority Indicator */}
       {(task.priority === 'urgent' || task.priority === 'high') && (
-        <PriorityIcon className={cn('h-3 w-3 flex-shrink-0', priorityInfo.color)} />
+        <div className={cn('rounded-full p-0.5', priorityInfo.bgColor)}>
+          <PriorityIcon className={cn('h-2.5 w-2.5', priorityInfo.color)} strokeWidth={2.5} />
+        </div>
       )}
 
       {/* Project Badge (for larger events) */}
@@ -78,17 +82,19 @@ export function MonthEventComponent({ event }: EventProps<CalendarEvent>) {
 
   return (
     <div
-      className="calendar-event-month flex items-center gap-1 px-1 py-0.5 text-xs truncate"
+      className="calendar-event-month flex items-center gap-1 px-1.5 py-1 text-xs truncate transition-all hover:scale-[1.02] hover:shadow-sm"
       style={{
-        backgroundColor: event.backgroundColor,
+        background: `linear-gradient(to right, ${event.borderColor}20, ${event.backgroundColor}99)`,
         color: event.textColor,
         borderLeft: `3px solid ${event.borderColor}`,
-        borderRadius: '2px',
+        borderRadius: '4px',
       }}
     >
-      <StatusIcon className="h-2.5 w-2.5 flex-shrink-0" />
-      <span className="truncate flex-1">{event.title}</span>
-      {task.priority === 'urgent' && <AlertTriangle className="h-2.5 w-2.5 text-red-500" />}
+      <StatusIcon className="h-2.5 w-2.5 flex-shrink-0" strokeWidth={2.5} />
+      <span className="truncate flex-1 font-medium">{event.title}</span>
+      {task.priority === 'urgent' && (
+        <AlertTriangle className="h-2.5 w-2.5 text-red-500" strokeWidth={2.5} />
+      )}
     </div>
   );
 }
@@ -104,7 +110,10 @@ export function AgendaEventComponent({ event }: EventProps<CalendarEvent>) {
       {/* Status and Priority */}
       <div className="flex items-center gap-2">
         <StatusIcon className="h-4 w-4" style={{ color: event.textColor }} />
-        <Badge variant="outline" className={cn('text-xs', priorityInfo.color)}>
+        <Badge
+          variant="outline"
+          className={cn('text-xs border-0', priorityInfo.color, priorityInfo.bgColor)}
+        >
           {task.priority}
         </Badge>
       </div>

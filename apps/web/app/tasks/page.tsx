@@ -310,7 +310,7 @@ export default function TasksPage() {
               <h1 className="text-2xl font-semibold">Tasks</h1>
               <p className="text-sm text-muted-foreground">Manage and organize your tasks</p>
             </div>
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New Task
             </Button>
@@ -723,7 +723,11 @@ export default function TasksPage() {
                   projectFilter === 'all' &&
                   selectedCategories.length === 0 &&
                   selectedTags.length === 0 && (
-                    <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
+                    <Button
+                      variant="primary"
+                      className="mt-4"
+                      onClick={() => setShowCreateModal(true)}
+                    >
                       <Plus className="mr-2 h-4 w-4" />
                       Create Task
                     </Button>

@@ -91,7 +91,7 @@ export interface CreateTaskRequest {
   start_date?: string;
   estimated_hours?: number;
   assigned_to_id?: string;
-  project_id?: string;
+  project_id?: string | null;
   parent_task_id?: string;
   tag_names?: string[]; // Backend expects tag names, not IDs
   category_ids?: string[];

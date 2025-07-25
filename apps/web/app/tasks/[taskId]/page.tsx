@@ -47,8 +47,9 @@ import {
   Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TasksService, Task, TaskStatus, TaskPriority } from '@/lib/api/tasks';
+import { Task, TaskStatus, TaskPriority, UpdateTaskRequest } from '@/lib/api/tasks';
 import { CommentsService, Comment } from '@/lib/api/comments';
+import { Project, ProjectsService } from '@/lib/api/projects';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
@@ -57,6 +58,11 @@ import { TaskActivity } from '@/components/tasks/task-activity';
 import { TimeTracking } from '@/components/tasks/time-tracking';
 import { Subtasks } from '@/components/tasks/subtasks';
 import { TaskDependencies } from '@/components/tasks/task-dependencies';
+import {
+  useTaskQuery,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
+} from '@/hooks/use-tasks-query';
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -65,22 +71,22 @@ export default function TaskDetailPage() {
   const { user } = useAuth();
   const taskId = params.taskId as string;
 
-  const [task, setTask] = useState<Task | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState<Partial<Task>>({});
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
 
-  // Fetch task details
-  const fetchTask = async () => {
-    try {
-      setLoading(true);
-      const fetchedTask = await TasksService.getTask(taskId);
-      setTask(fetchedTask);
-      setEditedTask(fetchedTask);
-    } catch (error) {
+  // Use React Query for fetching task
+  const { data: task, isLoading: loading, error } = useTaskQuery(taskId);
+  const updateTaskMutation = useUpdateTaskMutation();
+  const deleteTaskMutation = useDeleteTaskMutation();
+
+  // Handle task fetch error
+  useEffect(() => {
+    if (error) {
       console.error('Failed to fetch task:', error);
       toast({
         title: 'Error',
@@ -88,8 +94,26 @@ export default function TaskDetailPage() {
         variant: 'destructive',
       });
       router.push('/tasks');
+    }
+  }, [error, router, toast]);
+
+  // Update editedTask when task data changes
+  useEffect(() => {
+    if (task) {
+      setEditedTask(task);
+    }
+  }, [task]);
+
+  // Fetch projects
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const projectList = await ProjectsService.getProjects();
+      setProjects(projectList);
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
     } finally {
-      setLoading(false);
+      setLoadingProjects(false);
     }
   };
 
@@ -104,37 +128,38 @@ export default function TaskDetailPage() {
   };
 
   useEffect(() => {
-    fetchTask();
-    fetchComments();
+    if (taskId) {
+      fetchComments();
+    }
   }, [taskId]);
 
-  // Handle task update
+  // Handle task update using React Query mutation
   const handleSaveTask = async () => {
     if (!task) return;
 
-    try {
-      const updatedTask = await TasksService.updateTask(taskId, {
-        title: editedTask.title || task.title,
-        description: editedTask.description || task.description,
-        status: editedTask.status || task.status,
-        priority: editedTask.priority || task.priority,
-        due_date: editedTask.due_date || task.due_date,
-        start_date: editedTask.start_date || task.start_date,
-        estimated_hours: editedTask.estimated_hours || task.estimated_hours,
-      });
-      setTask(updatedTask);
-      setIsEditing(false);
-      toast({
-        title: 'Success',
-        description: 'Task updated successfully',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update task',
-        variant: 'destructive',
-      });
-    }
+    const updateData: UpdateTaskRequest = {
+      title: editedTask.title || task.title,
+      description: editedTask.description || task.description,
+      status: editedTask.status || task.status,
+      priority: editedTask.priority || task.priority,
+      due_date: editedTask.due_date || task.due_date,
+      start_date: editedTask.start_date || task.start_date,
+      estimated_hours: editedTask.estimated_hours || task.estimated_hours,
+      project_id: 'project_id' in editedTask ? editedTask.project_id || null : task.project_id,
+    };
+
+    updateTaskMutation.mutate(
+      { id: taskId, data: updateData },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+          // Toast is handled by the mutation hook
+        },
+        onError: () => {
+          // Error toast is handled by the mutation hook
+        },
+      }
+    );
   };
 
   // Handle comment submission
@@ -246,21 +271,14 @@ export default function TaskDetailPage() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"
-                  onClick={async () => {
-                    try {
-                      await TasksService.deleteTask(taskId);
-                      toast({
-                        title: 'Success',
-                        description: 'Task deleted successfully',
-                      });
-                      router.push('/tasks');
-                    } catch (error) {
-                      toast({
-                        title: 'Error',
-                        description: 'Failed to delete task',
-                        variant: 'destructive',
-                      });
-                    }
+                  onClick={() => {
+                    deleteTaskMutation.mutate(taskId, {
+                      onSuccess: () => {
+                        router.push('/tasks');
+                        // Toast is handled by the mutation hook
+                      },
+                      // Error toast is handled by the mutation hook
+                    });
                   }}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -298,6 +316,7 @@ export default function TaskDetailPage() {
                       handleSaveTask();
                     } else {
                       setIsEditing(true);
+                      fetchProjects();
                     }
                   }}
                 >
@@ -392,7 +411,7 @@ export default function TaskDetailPage() {
 
             {/* Subtasks */}
             <div className="mb-8">
-              <Subtasks parentTask={task} onUpdate={fetchTask} />
+              <Subtasks parentTask={task} />
             </div>
 
             {/* Metadata */}
@@ -607,7 +626,55 @@ export default function TaskDetailPage() {
 
             <div>
               <p className="mb-1 text-xs text-muted-foreground">Project</p>
-              {task.project ? (
+              {isEditing ? (
+                <Select
+                  value={editedTask.project_id || 'no-project'}
+                  onValueChange={(value) =>
+                    setEditedTask({
+                      ...editedTask,
+                      project_id: value === 'no-project' ? undefined : value,
+                    })
+                  }
+                  disabled={loadingProjects}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a project">
+                      {editedTask.project_id && (
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="h-3 w-3 rounded-full"
+                            style={{
+                              backgroundColor:
+                                projects.find((p) => p.id === editedTask.project_id)?.color ||
+                                '#6366f1',
+                            }}
+                          />
+                          {projects.find((p) => p.id === editedTask.project_id)?.name}
+                        </div>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no-project">
+                      <div className="flex items-center gap-2">
+                        <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                        No Project
+                      </div>
+                    </SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="h-3 w-3 rounded-full"
+                            style={{ backgroundColor: project.color || '#6366f1' }}
+                          />
+                          {project.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : task.project ? (
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">{task.project.name}</span>
@@ -651,7 +718,7 @@ export default function TaskDetailPage() {
           <Separator className="my-4" />
           <div>
             <h3 className="mb-4 text-sm font-medium">Time Tracking</h3>
-            <TimeTracking task={task} onTimeLogged={fetchTask} />
+            <TimeTracking task={task} onTimeLogged={() => {}} />
           </div>
         </div>
       </div>

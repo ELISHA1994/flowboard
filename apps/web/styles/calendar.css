@@ -2,16 +2,17 @@
 
 /* Base calendar styles */
 .rbc-calendar {
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--card));
   color: hsl(var(--foreground));
   font-family: inherit;
+  @apply gradient-card;
 }
 
 /* Header styles */
 .rbc-header {
-  background-color: hsl(var(--muted) / 0.5);
-  color: hsl(var(--muted-foreground));
-  @apply font-medium text-center py-2;
+  background: linear-gradient(to bottom, hsl(var(--muted) / 0.8), hsl(var(--muted) / 0.4));
+  color: hsl(var(--foreground));
+  @apply font-semibold text-center py-3;
   border-bottom: 1px solid hsl(var(--border));
   font-size: 0.875rem;
 }
@@ -40,17 +41,27 @@
 }
 
 .rbc-date-cell.rbc-current {
-  color: hsl(var(--primary));
-  @apply font-semibold;
+  color: hsl(158 64% 52%);
+  @apply font-bold;
 }
 
 .rbc-today {
-  background-color: hsl(var(--primary) / 0.1);
+  background: linear-gradient(135deg, hsl(158 64% 52% / 0.15), hsl(158 64% 40% / 0.1));
+  position: relative;
+}
+
+.rbc-today::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid hsl(158 64% 52%);
+  border-radius: 0.25rem;
+  pointer-events: none;
 }
 
 .rbc-today .rbc-date-cell {
-  color: hsl(var(--primary));
-  @apply font-semibold;
+  color: hsl(158 64% 52%);
+  @apply font-bold;
 }
 
 /* Week and day view styles */
@@ -84,30 +95,35 @@
 }
 
 .rbc-current-time-indicator {
-  @apply bg-primary h-0.5;
+  background: hsl(158 64% 52%);
+  height: 2px;
+  box-shadow: 0 0 4px hsl(158 64% 52% / 0.5);
 }
 
 .rbc-timeslot-group {
-  @apply border-b border-border/50;
+  @apply border-b border-border/30;
 }
 
 /* Event styles */
 .rbc-event {
-  @apply rounded text-xs font-medium;
-  padding: 2px 4px;
-  border: none !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.rbc-event:hover {
-  @apply shadow-md;
-  transform: translateY(-1px);
+  @apply rounded-md text-xs font-medium gradient-button;
+  padding: 4px 6px;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
 }
 
+.rbc-event:hover {
+  @apply shadow-lg;
+  transform: translateY(-2px);
+  border-color: hsl(158 64% 52% / 0.5) !important;
+}
+
 .rbc-event.rbc-selected {
-  @apply shadow-lg ring-2 ring-primary/50;
-  transform: translateY(-1px);
+  @apply shadow-xl ring-2 ring-primary;
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, hsl(158 64% 52% / 0.2), hsl(158 64% 40% / 0.1));
+  border-color: hsl(158 64% 52%) !important;
 }
 
 .rbc-event-allday {
@@ -167,7 +183,9 @@
 
 /* Show more link */
 .rbc-show-more {
-  @apply text-primary text-xs font-medium cursor-pointer hover:underline p-1;
+  color: hsl(158 64% 52%);
+  @apply text-xs font-semibold cursor-pointer hover:underline p-1;
+  text-shadow: 0 0 8px hsl(158 64% 52% / 0.3);
 }
 
 /* Popup styles */
@@ -189,13 +207,29 @@
   display: none; /* Hide default toolbar */
 }
 
+/* Custom toolbar styles */
+.calendar-toolbar {
+  @apply flex items-center justify-between p-4 border-b border-border gradient-card rounded-t-lg;
+}
+
+.calendar-toolbar-nav {
+  @apply flex items-center gap-2;
+}
+
+.calendar-toolbar-views {
+  @apply flex items-center gap-1 p-1 rounded-lg bg-muted/50;
+}
+
 /* Selection styles */
 .rbc-slot-selecting {
-  @apply bg-primary/20;
+  background: linear-gradient(135deg, hsl(158 64% 52% / 0.2), hsl(158 64% 40% / 0.1));
+  border: 1px dashed hsl(158 64% 52% / 0.5);
 }
 
 .rbc-slot-selection {
-  @apply bg-primary/30 border border-primary/50;
+  background: linear-gradient(135deg, hsl(158 64% 52% / 0.3), hsl(158 64% 40% / 0.2));
+  border: 2px solid hsl(158 64% 52%);
+  border-radius: 0.25rem;
 }
 
 /* Drag and drop styles */

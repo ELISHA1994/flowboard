@@ -43,15 +43,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <div
       className={cn(
-        'relative flex h-full flex-col border-r bg-background transition-all duration-300',
+        'relative flex h-full flex-col border-r border-border gradient-dark transition-all duration-300',
         collapsed ? 'w-16' : 'w-60'
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b px-4">
+      <div className="flex h-16 items-center justify-between border-b border-border px-4">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-lg bg-primary" />
+            <div className="h-8 w-8 rounded-lg gradient-primary shadow-md" />
             <span className="text-xl font-bold">TaskMaster</span>
           </Link>
         )}
@@ -59,7 +59,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           variant="ghost"
           size="icon"
           onClick={onToggle}
-          className={cn(collapsed && 'mx-auto')}
+          className={cn('text-muted-foreground hover:text-foreground', collapsed && 'mx-auto')}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
@@ -73,7 +73,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <input
               type="text"
               placeholder="Search..."
-              className="w-full rounded-md border bg-background py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-4 text-sm placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
         </div>
@@ -82,6 +82,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Quick Actions */}
       <div className="px-4 pb-4">
         <Button
+          variant="primary"
           className={cn('w-full justify-start', collapsed && 'justify-center px-0')}
           size={collapsed ? 'icon' : 'default'}
         >
@@ -99,10 +100,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               key={item.name}
               href={item.href}
               className={cn(
-                'flex items-center rounded-md px-2 py-2 text-sm font-medium transition-colors',
+                'flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-secondary text-secondary-foreground'
-                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground',
+                  ? 'bg-primary/20 text-primary shadow-sm border border-primary/30'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 collapsed && 'justify-center'
               )}
             >
@@ -114,11 +115,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Settings */}
-      <div className="border-t p-4">
+      <div className="border-t border-border p-4">
         <Link
           href="/settings"
           className={cn(
-            'flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground',
+            'flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-accent-foreground',
             collapsed && 'justify-center'
           )}
         >

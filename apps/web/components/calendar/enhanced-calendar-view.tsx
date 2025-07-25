@@ -26,47 +26,57 @@ export function EnhancedCalendarView() {
   // Extract tasks from calendar events
   const tasks = events?.map((event) => event.resource) || [];
 
-  // Mock team members for demo (in production, this would come from an API)
+  // Extract real team members from tasks
   const teamMembers = useMemo(() => {
     const uniqueAssignees = new Map();
 
-    // Add current user
+    // Add current user if they have tasks
     if (user) {
-      uniqueAssignees.set(user.id, {
-        id: user.id,
-        name: user.name || 'Current User',
-        email: user.email,
-        avatar: undefined,
-      });
+      const userHasTasks = tasks.some(
+        (task) => task.user_id === user.id || task.assigned_to_id === user.id
+      );
+      if (userHasTasks) {
+        uniqueAssignees.set(user.id, {
+          id: user.id,
+          name: user.name || user.username || 'Current User',
+          email: user.email,
+          avatar: undefined,
+        });
+      }
     }
 
-    // Extract unique assignees from tasks
+    // Extract unique assignees from tasks who have actual assignments
     tasks.forEach((task) => {
       if (task.assigned_to_id && !uniqueAssignees.has(task.assigned_to_id)) {
-        uniqueAssignees.set(task.assigned_to_id, {
-          id: task.assigned_to_id,
-          name: `Team Member ${uniqueAssignees.size + 1}`,
-          email: `member${uniqueAssignees.size + 1}@example.com`,
+        // Check if we have assignee details from the task
+        if (task.assigned_to) {
+          uniqueAssignees.set(task.assigned_to_id, {
+            id: task.assigned_to_id,
+            name: task.assigned_to.full_name || task.assigned_to.username || 'Unknown User',
+            email: task.assigned_to.email,
+            avatar: undefined,
+          });
+        } else {
+          // Fallback if assignee details not populated
+          uniqueAssignees.set(task.assigned_to_id, {
+            id: task.assigned_to_id,
+            name: `User ${task.assigned_to_id.slice(0, 8)}`,
+            email: `user${task.assigned_to_id.slice(0, 8)}@example.com`,
+            avatar: undefined,
+          });
+        }
+      }
+
+      // Also include task owners (user_id) if different from assigned_to
+      if (task.user_id && !uniqueAssignees.has(task.user_id)) {
+        uniqueAssignees.set(task.user_id, {
+          id: task.user_id,
+          name: `User ${task.user_id.slice(0, 8)}`,
+          email: `user${task.user_id.slice(0, 8)}@example.com`,
           avatar: undefined,
         });
       }
     });
-
-    // Add some demo team members if we have less than 3
-    const demoMembers = [
-      { id: 'demo-1', name: 'Alice Johnson', email: 'alice@example.com' },
-      { id: 'demo-2', name: 'Bob Smith', email: 'bob@example.com' },
-      { id: 'demo-3', name: 'Carol Davis', email: 'carol@example.com' },
-    ];
-
-    let index = 0;
-    while (uniqueAssignees.size < 3 && index < demoMembers.length) {
-      const demo = demoMembers[index];
-      if (!uniqueAssignees.has(demo.id)) {
-        uniqueAssignees.set(demo.id, demo);
-      }
-      index++;
-    }
 
     return Array.from(uniqueAssignees.values());
   }, [tasks, user]);
@@ -131,7 +141,7 @@ export function EnhancedCalendarView() {
                 {(() => {
                   const projectCounts = tasks.reduce(
                     (acc, task) => {
-                      const projectName = task.project_id || 'No Project';
+                      const projectName = task.project?.name || 'No Project';
                       acc[projectName] = (acc[projectName] || 0) + 1;
                       return acc;
                     },
