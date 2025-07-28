@@ -211,7 +211,7 @@ class TestUserProfile:
         # This would require creating an expired token
         # For now, we'll use an invalid token as a proxy
         headers = {
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.expired"
+            "Authorization": "Bearer invalid-expired-test-token"
         }
         response = test_client.get("/users/me", headers=headers)
 
