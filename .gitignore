@@ -249,3 +249,9 @@ apps/backend/openapi.json
 
 # Project documentation
 CLAUDE.md
+
+# Screenshots and images
+*.png
+*.jpg
+*.jpeg
+*.gif
