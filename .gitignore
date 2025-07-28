@@ -246,3 +246,6 @@ redis_data/
 # Generated files
 openapi.json
 apps/backend/openapi.json
+
+# Project documentation
+CLAUDE.md
