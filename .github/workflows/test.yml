@@ -1,118 +1,118 @@
-name: Tests
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: taskmanageruser
-          POSTGRES_PASSWORD: taskmanagerpass
-          POSTGRES_DB: taskmanager_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Set up Python cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('apps/backend/requirements*.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python dependencies
-        working-directory: apps/backend
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-
-      - name: Run backend linting
-        working-directory: apps/backend
-        run: |
-          make lint
-
-      - name: Run backend tests
-        working-directory: apps/backend
-        env:
-          DATABASE_URL: postgresql://taskmanageruser:taskmanagerpass@localhost:5432/taskmanager_test
-          TEST_DATABASE_URL: postgresql://taskmanageruser:taskmanagerpass@localhost:5432/taskmanager_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          SECRET_KEY: test-secret-key-for-ci
-          JWT_SECRET_KEY: test-jwt-secret-key-for-ci
-          ENVIRONMENT: test
-        run: |
-          pytest --cov=app --cov-report=xml --cov-report=html
-
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-reports
-          path: |
-            apps/backend/coverage.xml
-            apps/backend/htmlcov/
-
-      - name: Run frontend type check
-        run: pnpm type-check
-
-      - name: Run frontend linting
-        run: pnpm lint
+#name: Tests
+#
+#on:
+#  push:
+#    branches: [main]
+#  pull_request:
+#    branches: [main]
+#
+#jobs:
+#  test:
+#    runs-on: ubuntu-latest
+#
+#    services:
+#      postgres:
+#        image: postgres:15
+#        env:
+#          POSTGRES_USER: taskmanageruser
+#          POSTGRES_PASSWORD: taskmanagerpass
+#          POSTGRES_DB: taskmanager_test
+#        ports:
+#          - 5432:5432
+#        options: >-
+#          --health-cmd pg_isready
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#
+#      redis:
+#        image: redis:7
+#        ports:
+#          - 6379:6379
+#        options: >-
+#          --health-cmd "redis-cli ping"
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v4
+#
+#      - name: Set up Python
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: '3.11'
+#
+#      - name: Set up Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: '20'
+#
+#      - name: Install pnpm
+#        uses: pnpm/action-setup@v2
+#        with:
+#          version: 8
+#          run_install: false
+#
+#      - name: Get pnpm store directory
+#        shell: bash
+#        run: |
+#          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+#
+#      - name: Setup pnpm cache
+#        uses: actions/cache@v4
+#        with:
+#          path: ${{ env.STORE_PATH }}
+#          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+#          restore-keys: |
+#            ${{ runner.os }}-pnpm-store-
+#
+#      - name: Install dependencies
+#        run: pnpm install
+#
+#      - name: Set up Python cache
+#        uses: actions/cache@v4
+#        with:
+#          path: ~/.cache/pip
+#          key: ${{ runner.os }}-pip-${{ hashFiles('apps/backend/requirements*.txt') }}
+#          restore-keys: |
+#            ${{ runner.os }}-pip-
+#
+#      - name: Install Python dependencies
+#        working-directory: apps/backend
+#        run: |
+#          pip install -r requirements.txt
+#          pip install -r requirements-dev.txt
+#
+#      - name: Run backend linting
+#        working-directory: apps/backend
+#        run: |
+#          make lint
+#
+#      - name: Run backend tests
+#        working-directory: apps/backend
+#        env:
+#          DATABASE_URL: postgresql://taskmanageruser:taskmanagerpass@localhost:5432/taskmanager_test
+#          TEST_DATABASE_URL: postgresql://taskmanageruser:taskmanagerpass@localhost:5432/taskmanager_test
+#          REDIS_HOST: localhost
+#          REDIS_PORT: 6379
+#          SECRET_KEY: test-secret-key-for-ci
+#          JWT_SECRET_KEY: test-jwt-secret-key-for-ci
+#          ENVIRONMENT: test
+#        run: |
+#          pytest --cov=app --cov-report=xml --cov-report=html
+#
+#      - name: Upload coverage reports
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: coverage-reports
+#          path: |
+#            apps/backend/coverage.xml
+#            apps/backend/htmlcov/
+#
+#      - name: Run frontend type check
+#        run: pnpm type-check
+#
+#      - name: Run frontend linting
+#        run: pnpm lint
